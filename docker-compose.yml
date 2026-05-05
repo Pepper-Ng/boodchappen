@@ -1,11 +1,17 @@
 services:
   backend:
     build: ./backend
-    ports: ["8000:8000"]
+    expose: ["8000"]
     environment:
       - DATABASE_URL=sqlite:///./app.db
       - SECRET_KEY=change-me
+    networks: [proxy]
   frontend:
     build: ./frontend
-    ports: ["5173:5173"]
+    expose: ["5173"]
     depends_on: [backend]
+    networks: [proxy]
+
+networks:
+  proxy:
+    external: true
