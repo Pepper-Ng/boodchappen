@@ -1,0 +1,292 @@
+.page-topbar {
+  position: sticky;
+  top: 0.75rem;
+  z-index: 30;
+  padding: 0.1rem 0 0.55rem;
+  backdrop-filter: blur(24px) saturate(150%);
+}
+
+.toolbar {
+  flex-wrap: wrap;
+}
+
+.toolbar-group,
+.section-tabs,
+.segmented-control {
+  backdrop-filter: blur(24px) saturate(150%);
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.summary-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.summary-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 8.6rem;
+  padding: 1rem;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 82%, transparent), var(--surface));
+}
+
+.summary-card::after {
+  content: '';
+  position: absolute;
+  inset: auto -1.25rem -1.25rem auto;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(15, 114, 104, 0.1) 0%, transparent 70%);
+}
+
+.summary-value {
+  font-size: clamp(1.8rem, 3vw, 2.45rem);
+}
+
+.section-tabs {
+  position: sticky;
+  top: 5.45rem;
+  z-index: 25;
+  padding: 0.45rem;
+  overflow-x: auto;
+}
+
+.section-tab {
+  min-height: 2.9rem;
+  padding-inline: 1.05rem;
+}
+
+.dashboard-grid .surface,
+.dashboard-grid .surface--soft,
+.dashboard-grid .surface--compact {
+  backdrop-filter: blur(24px) saturate(145%);
+}
+
+.dashboard-grid .surface-pad {
+  padding: 1.15rem;
+}
+
+.content-grid--two {
+  grid-template-columns: minmax(0, 1.08fr) minmax(330px, 0.92fr);
+}
+
+.content-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.recipe-grid,
+.product-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.recipe-card,
+.product-card,
+.job-card,
+.day-card,
+.chapter-panel,
+.media-card,
+.export-card {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.recipe-card,
+.product-card,
+.job-card,
+.day-card {
+  padding: 1rem;
+  min-height: 100%;
+}
+
+.recipe-card,
+.product-card,
+.job-card {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 82%, transparent), var(--surface));
+}
+
+.recipe-cover,
+.product-cover,
+.media-image {
+  aspect-ratio: 4 / 3;
+  border-radius: 1rem;
+}
+
+.recipe-snippet {
+  -webkit-line-clamp: 4;
+}
+
+.recipe-ingredients-list {
+  gap: 0.5rem;
+}
+
+.recipe-ingredient {
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.85rem;
+  background: var(--surface-tint);
+}
+
+.recipe-ingredient strong,
+.recipe-ingredient span {
+  color: var(--text-strong);
+}
+
+.job-stack {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.job-meta,
+.recipe-meta,
+.product-meta,
+.shopping-meta {
+  gap: 0.45rem;
+}
+
+.job-status,
+.import-status,
+.shopping-match {
+  padding: 0.36rem 0.68rem;
+}
+
+.week-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.08fr);
+  gap: 1rem;
+}
+
+.week-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.day-card {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 88%, transparent), var(--surface));
+}
+
+.day-name {
+  letter-spacing: 0.11em;
+}
+
+.day-empty {
+  border-radius: 1rem;
+}
+
+.plan-row,
+.shopping-row,
+.step-row,
+.notice {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+}
+
+.shopping-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(330px, 0.92fr);
+  gap: 1rem;
+}
+
+.shopping-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.shopping-row {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.shopping-copy,
+.job-copy,
+.plan-subtitle,
+.empty-copy,
+.section-copy,
+.hero-subtitle {
+  line-height: 1.65;
+}
+
+.export-card {
+  position: sticky;
+  top: 5.45rem;
+}
+
+.export-lines {
+  gap: 0.55rem;
+}
+
+.export-line {
+  background: var(--surface-strong);
+}
+
+.link-button {
+  padding: 0.2rem 0;
+}
+
+.detail-row {
+  gap: 0.65rem;
+}
+
+.dashboard-grid .empty-state,
+.dashboard-grid .notice {
+  border-radius: 1rem;
+}
+
+.landing-layout .surface,
+.dashboard-grid .surface,
+.tutorial-layout .surface {
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 1240px) {
+  .summary-grid,
+  .content-grid--three,
+  .week-days {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .content-grid--two,
+  .week-layout,
+  .shopping-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .export-card {
+    position: static;
+  }
+}
+
+@media (max-width: 780px) {
+  .summary-grid,
+  .content-grid--three,
+  .recipe-grid,
+  .product-grid,
+  .week-days {
+    grid-template-columns: 1fr;
+  }
+
+  .section-tabs {
+    top: 5.15rem;
+  }
+
+  .section-tab,
+  .button,
+  .segmented-button {
+    width: 100%;
+  }
+
+  .toolbar .button,
+  .toolbar-group,
+  .panel-actions,
+  .inline-actions,
+  .action-row {
+    width: 100%;
+  }
+
+  .toolbar-group {
+    justify-content: space-between;
+  }
+}

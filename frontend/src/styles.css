@@ -1,2 +1,5 @@
-body{font-family:Arial;background:#fafafa;color:#111}body.dark{background:#111;color:#eee}.tabs button{margin:4px}
-input,button,select{margin:4px;padding:6px}
+@import './styles/theme.css';
+@import './styles/app.css';
+@import './styles/landing.css';
+@import './styles/dashboard.css';
+@import './styles/tutorial.css';

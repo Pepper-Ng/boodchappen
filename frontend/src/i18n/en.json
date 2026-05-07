@@ -1,0 +1,315 @@
+{
+  "brand": {
+    "name": "Boodschappen",
+    "tagline": "AH products, Allerhande recipes, and weekly planning"
+  },
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "tutorial": "Tutorial",
+    "logout": "Log out",
+    "backToApp": "Back to app",
+    "openDashboard": "Open dashboard",
+    "signIn": "Sign in",
+    "register": "Register"
+  },
+  "common": {
+    "language": "Language",
+    "theme": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "loading": "Loading",
+    "import": "Import",
+    "generate": "Generate",
+    "copy": "Copy",
+    "refresh": "Refresh",
+    "remove": "Remove",
+    "add": "Add",
+    "optional": "Optional",
+    "open": "Open",
+    "edit": "Edit"
+  },
+  "landing": {
+    "eyebrow": "Dutch grocery planning, but calmer",
+    "title": "Turn AH products, Allerhande recipes, and your weekly shopping into one clear flow.",
+    "subtitle": "Import real AH data, connect recipe ingredients to products you already know, then generate a weekly grocery list that makes sense at a glance.",
+    "ctaPrimary": "Open dashboard",
+    "ctaSecondary": "Read the tutorial",
+    "principlesTitle": "The three core principles",
+    "principles": [
+      {
+        "title": "Import AH products",
+        "description": "Store titles, prices, units, images, and product IDs for the exact groceries you buy."
+      },
+      {
+        "title": "Connect recipe ingredients",
+        "description": "Parse Allerhande recipes into normalized ingredients that can be matched back to products."
+      },
+      {
+        "title": "Generate a weekly grocery list",
+        "description": "Scale by person count, merge duplicates, and export a clean list for the week."
+      }
+    ],
+    "workflowTitle": "How it works",
+    "workflow": [
+      {
+        "title": "Import",
+        "description": "Bring in product and recipe data from AH and Allerhande."
+      },
+      {
+        "title": "Plan",
+        "description": "Assign recipes to days and tune the portion size per meal."
+      },
+      {
+        "title": "Export",
+        "description": "Aggregate ingredients into a shopping list that is easy to buy from."
+      }
+    ],
+    "authTitle": "Access your account",
+    "authCopy": "Log in with your username or email address and a password. New accounts can add a username or let the backend generate one.",
+    "authHint": "Login accepts either username or email."
+  },
+  "auth": {
+    "loginTitle": "Welcome back",
+    "registerTitle": "Create an account",
+    "loginHelper": "Use your username or email with the same password.",
+    "registerHelper": "The username is optional. If you skip it, the backend will create one from your email.",
+    "tabs": {
+      "login": "Log in",
+      "register": "Register"
+    },
+    "labels": {
+      "identifier": "Username or email",
+      "email": "Email",
+      "username": "Username",
+      "password": "Password"
+    },
+    "placeholders": {
+      "identifier": "username or email",
+      "email": "you@example.com",
+      "username": "Optional handle",
+      "password": "At least 8 characters"
+    },
+    "buttons": {
+      "login": "Sign in",
+      "register": "Create account"
+    },
+    "messages": {
+      "successLogin": "Signed in successfully.",
+      "successRegister": "Account created.",
+      "error": "Check your credentials and try again."
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Keep recipes, products, week planning, and shopping output in one place.",
+    "welcome": "Hello, {username}",
+    "tabs": {
+      "recipes": "Recipes",
+      "products": "Products",
+      "week": "Week menu",
+      "shopping": "Grocery list / cart"
+    },
+    "stats": {
+      "recipes": "Recipes",
+      "products": "Products",
+      "week": "Week entries",
+      "shopping": "Shopping items",
+      "jobs": "Import jobs"
+    },
+    "recipes": {
+      "title": "Recipes",
+      "description": "Import AH / Allerhande recipes and keep the parsed ingredients ready for planning.",
+      "importTitle": "Import recipe",
+      "importCopy": "Use the async import job for a visible queued / parsing state.",
+      "urlLabel": "Allerhande recipe URL",
+      "urlPlaceholder": "https://www.ah.nl/allerhande/recept/...",
+      "button": "Import recipe",
+      "loadingQueued": "Recipe import queued.",
+      "loadingRunning": "Parsing recipe and saving ingredients.",
+      "loadingSucceeded": "Recipe import finished.",
+      "loadingFailed": "Recipe import failed.",
+      "loadingTitle": "Import progress",
+      "loadingCopy": "The backend is importing the recipe in the background. This keeps the UI in sync with the actual job state.",
+      "jobsTitle": "Recent import jobs",
+      "jobsEmpty": "No import jobs yet.",
+      "listTitle": "Imported recipes",
+      "emptyTitle": "No recipes imported yet",
+      "emptyText": "Paste an Allerhande URL above to add the first recipe.",
+      "ingredientsLabel": "ingredients",
+      "basePersonsLabel": "base persons",
+      "sourceLabel": "Source",
+      "openSource": "Open source",
+      "viewRecipe": "Recipe details",
+      "statusLabels": {
+        "queued": "Queued",
+        "running": "Parsing",
+        "succeeded": "Imported",
+        "failed": "Failed"
+      }
+    },
+    "products": {
+      "title": "Products",
+      "description": "Import AH products you actually buy so they can be matched against ingredients later.",
+      "importTitle": "Import product",
+      "importCopy": "Store title, price, image, and AH identifiers for your own grocery catalog.",
+      "urlLabel": "AH product URL",
+      "urlPlaceholder": "https://www.ah.nl/producten/product/...",
+      "button": "Import product",
+      "emptyTitle": "No products imported yet",
+      "emptyText": "Paste an AH product URL above to start your catalog.",
+      "priceLabel": "Price",
+      "unitLabel": "Unit",
+      "sourceLabel": "Source",
+      "openSource": "Open product"
+    },
+    "week": {
+      "title": "Week menu",
+      "description": "Assign recipes to days, choose the number of people, and let the backend scale ingredients.",
+      "recipeLabel": "Recipe",
+      "dayLabel": "Day",
+      "personsLabel": "Persons",
+      "button": "Add to week",
+      "removeLabel": "Remove",
+      "emptyTitle": "No week plan yet",
+      "emptyText": "Select a recipe, pick a day, and add the first meal to the menu.",
+      "days": {
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday"
+      }
+    },
+    "shopping": {
+      "title": "Grocery list / shopping cart",
+      "description": "Generate an export-ready grocery list from your week plan and see which items match imported products.",
+      "generateButton": "Generate grocery list",
+      "copyButton": "Copy export text",
+      "refreshButton": "Refresh list",
+      "exportTitle": "Export lines",
+      "exportCopy": "These lines are ready to paste into a cart, note, or shopping app.",
+      "itemsTitle": "Aggregated groceries",
+      "emptyTitle": "No groceries to export yet",
+      "emptyText": "Build a week plan first, then generate the list from the current recipes.",
+      "matchedLabel": "Matched product",
+      "searchLabel": "Search AH",
+      "productLabel": "Imported product",
+      "exportReady": "Export-ready list",
+      "exportHint": "The backend already aggregated ingredient quantities and matched products where possible.",
+      "cartLabel": "Shopping cart intent"
+    }
+  },
+  "tutorial": {
+    "title": "Tutorial",
+    "subtitle": "Browse the app flow in chapters. The media slots support screenshots or any asset you place in /public/tutorial.",
+    "backToApp": "Back to the app",
+    "assetHint": "These visuals load from /public/tutorial and can be replaced with screenshots at any time.",
+    "chapters": [
+      {
+        "id": "account",
+        "title": "Account setup",
+        "summary": "Register once, then sign in with either your username or email address plus password.",
+        "steps": [
+          "Open the landing page.",
+          "Choose Register if you are new, or Log in if the account already exists.",
+          "Use a password with at least eight characters.",
+          "The login form accepts username or email, whichever is easier to remember."
+        ],
+        "api": "POST /auth/register and POST /auth/login",
+        "asset": {
+          "src": "/tutorial/account.svg",
+          "alt": "Landing page with the auth panel",
+          "caption": "The landing page keeps the sign-in flow visible without hiding the product story."
+        }
+      },
+      {
+        "id": "recipes",
+        "title": "Import AH recipes",
+        "summary": "Paste an Allerhande URL and let the backend parse the recipe, ingredients, instructions, and base servings.",
+        "steps": [
+          "Open the Recipes tab.",
+          "Paste an AH Allerhande recipe URL.",
+          "Start the async import job to show a live queued and parsing state.",
+          "When the job succeeds, the recipe appears in your collection."
+        ],
+        "api": "POST /recipes/import-jobs and GET /import-jobs/{id}",
+        "asset": {
+          "src": "/tutorial/recipes.svg",
+          "alt": "Recipe import progress panel",
+          "caption": "Recipe import uses a visible status card so the parser never feels opaque."
+        }
+      },
+      {
+        "id": "products",
+        "title": "Import AH products",
+        "summary": "Save the items you already buy so grocery items can be matched back to your product catalog.",
+        "steps": [
+          "Open the Products tab.",
+          "Paste an AH product URL.",
+          "Import the product to store title, price, image, unit, and AH identifier.",
+          "Imported products are available for shopping list matching."
+        ],
+        "api": "POST /products/import",
+        "asset": {
+          "src": "/tutorial/products.svg",
+          "alt": "Product import and catalog cards",
+          "caption": "Imported products become part of your personal catalog for later matching."
+        }
+      },
+      {
+        "id": "week",
+        "title": "Build the week menu",
+        "summary": "Assign recipes to weekdays and choose how many people will eat each meal.",
+        "steps": [
+          "Open Week menu.",
+          "Choose a recipe from the collection.",
+          "Pick a day and person count.",
+          "Add or remove entries until the week plan feels right."
+        ],
+        "api": "POST /weekplan and DELETE /weekplan/{id}",
+        "asset": {
+          "src": "/tutorial/weekplan.svg",
+          "alt": "Week planner with day cards",
+          "caption": "Week planning stays readable by grouping entries per day."
+        }
+      },
+      {
+        "id": "shopping",
+        "title": "Generate the grocery list",
+        "summary": "Aggregate ingredient quantities, show product matches, and copy the export text when you are ready to shop.",
+        "steps": [
+          "Open the Grocery list / cart tab.",
+          "Generate the list from the current week plan.",
+          "Review the matched products or AH search links.",
+          "Copy the export text into the app or workflow you prefer."
+        ],
+        "api": "GET /shopping-list and GET /shopping-list/export",
+        "asset": {
+          "src": "/tutorial/shopping.svg",
+          "alt": "Shopping list export panel",
+          "caption": "The export panel makes the shopping intent explicit instead of hiding it behind a generic list."
+        }
+      },
+      {
+        "id": "jobs",
+        "title": "Async import jobs",
+        "summary": "Recipe imports run in the background, which makes parsing state visible and predictable.",
+        "steps": [
+          "Create a job with the recipe URL.",
+          "Poll the job endpoint until it becomes succeeded or failed.",
+          "Refresh the recipe list once the job completes.",
+          "Use this flow whenever you want visible loading feedback."
+        ],
+        "api": "POST /recipes/import-jobs and GET /import-jobs/{id}",
+        "asset": {
+          "src": "/tutorial/jobs.svg",
+          "alt": "Import job status timeline",
+          "caption": "The job timeline gives the UI a truthful loading state without guessing."
+        }
+      }
+    ]
+  }
+}

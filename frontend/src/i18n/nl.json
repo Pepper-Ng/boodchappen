@@ -1,0 +1,315 @@
+{
+  "brand": {
+    "name": "Boodschappen",
+    "tagline": "AH-producten, Allerhande-recepten en weekplanning"
+  },
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "tutorial": "Handleiding",
+    "logout": "Uitloggen",
+    "backToApp": "Terug naar de app",
+    "openDashboard": "Dashboard openen",
+    "signIn": "Inloggen",
+    "register": "Registreren"
+  },
+  "common": {
+    "language": "Taal",
+    "theme": "Thema",
+    "light": "Licht",
+    "dark": "Donker",
+    "loading": "Laden",
+    "import": "Importeren",
+    "generate": "Genereren",
+    "copy": "Kopiëren",
+    "refresh": "Vernieuwen",
+    "remove": "Verwijderen",
+    "add": "Toevoegen",
+    "optional": "Optioneel",
+    "open": "Openen",
+    "edit": "Bewerken"
+  },
+  "landing": {
+    "eyebrow": "Nederlandse boodschappenplanning, maar rustiger",
+    "title": "Breng AH-producten, Allerhande-recepten en je weekboodschappen samen in één helder proces.",
+    "subtitle": "Importeer echte AH-data, koppel receptingrediënten aan producten die je al kent en genereer daarna een weeklijst die direct begrijpelijk is.",
+    "ctaPrimary": "Dashboard openen",
+    "ctaSecondary": "Handleiding lezen",
+    "principlesTitle": "De drie kernprincipes",
+    "principles": [
+      {
+        "title": "Importeer AH-producten",
+        "description": "Bewaar titels, prijzen, eenheden, afbeeldingen en product-ID’s van de boodschappen die je echt koopt."
+      },
+      {
+        "title": "Koppel receptingrediënten",
+        "description": "Verwerk Allerhande-recepten naar genormaliseerde ingrediënten die met producten gematcht kunnen worden."
+      },
+      {
+        "title": "Genereer een weekboodschappenlijst",
+        "description": "Schaal op aantal personen, bundel duplicaten en exporteer een nette lijst voor de week."
+      }
+    ],
+    "workflowTitle": "Hoe het werkt",
+    "workflow": [
+      {
+        "title": "Importeren",
+        "description": "Haal product- en receptdata binnen vanuit AH en Allerhande."
+      },
+      {
+        "title": "Plannen",
+        "description": "Wijs recepten toe aan dagen en stel de portiegrootte per maaltijd in."
+      },
+      {
+        "title": "Exporteren",
+        "description": "Bundel ingrediënten in een boodschappenlijst die je makkelijk kunt afvinken."
+      }
+    ],
+    "authTitle": "Toegang tot je account",
+    "authCopy": "Log in met je gebruikersnaam of e-mailadres en een wachtwoord. Nieuwe accounts kunnen een gebruikersnaam toevoegen of die door de backend laten aanmaken.",
+    "authHint": "Inloggen werkt met gebruikersnaam of e-mail."
+  },
+  "auth": {
+    "loginTitle": "Welkom terug",
+    "registerTitle": "Account aanmaken",
+    "loginHelper": "Gebruik je gebruikersnaam of e-mail met hetzelfde wachtwoord.",
+    "registerHelper": "De gebruikersnaam is optioneel. Als je die overslaat, maakt de backend er automatisch een aan op basis van je e-mail.",
+    "tabs": {
+      "login": "Inloggen",
+      "register": "Registreren"
+    },
+    "labels": {
+      "identifier": "Gebruikersnaam of e-mail",
+      "email": "E-mail",
+      "username": "Gebruikersnaam",
+      "password": "Wachtwoord"
+    },
+    "placeholders": {
+      "identifier": "gebruikersnaam of e-mail",
+      "email": "jij@voorbeeld.nl",
+      "username": "Optionele naam",
+      "password": "Minstens 8 tekens"
+    },
+    "buttons": {
+      "login": "Inloggen",
+      "register": "Account maken"
+    },
+    "messages": {
+      "successLogin": "Succesvol ingelogd.",
+      "successRegister": "Account aangemaakt.",
+      "error": "Controleer je gegevens en probeer het opnieuw."
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Houd recepten, producten, weekplanning en boodschappenuitvoer op één plek bij.",
+    "welcome": "Hallo, {username}",
+    "tabs": {
+      "recipes": "Recepten",
+      "products": "Producten",
+      "week": "Weekmenu",
+      "shopping": "Boodschappenlijst / mandje"
+    },
+    "stats": {
+      "recipes": "Recepten",
+      "products": "Producten",
+      "week": "Weekregels",
+      "shopping": "Boodschappen",
+      "jobs": "Importtaken"
+    },
+    "recipes": {
+      "title": "Recepten",
+      "description": "Importeer AH / Allerhande-recepten en houd de geparste ingrediënten klaar voor planning.",
+      "importTitle": "Recept importeren",
+      "importCopy": "Gebruik de async importtaak voor een zichtbare wachtrij- en parse-status.",
+      "urlLabel": "Allerhande-recept-URL",
+      "urlPlaceholder": "https://www.ah.nl/allerhande/recept/...",
+      "button": "Recept importeren",
+      "loadingQueued": "Receptimport staat in de wachtrij.",
+      "loadingRunning": "Recept verwerken en ingrediënten opslaan.",
+      "loadingSucceeded": "Receptimport voltooid.",
+      "loadingFailed": "Receptimport mislukt.",
+      "loadingTitle": "Importvoortgang",
+      "loadingCopy": "De backend importeert het recept op de achtergrond. Zo blijft de UI synchroon met de echte jobstatus.",
+      "jobsTitle": "Recente importtaken",
+      "jobsEmpty": "Nog geen importtaken.",
+      "listTitle": "Geïmporteerde recepten",
+      "emptyTitle": "Nog geen recepten geïmporteerd",
+      "emptyText": "Plak hierboven een Allerhande-URL om het eerste recept toe te voegen.",
+      "ingredientsLabel": "ingrediënten",
+      "basePersonsLabel": "basispersonen",
+      "sourceLabel": "Bron",
+      "openSource": "Bron openen",
+      "viewRecipe": "Receptdetails",
+      "statusLabels": {
+        "queued": "Wacht",
+        "running": "Bezig",
+        "succeeded": "Geïmporteerd",
+        "failed": "Mislukt"
+      }
+    },
+    "products": {
+      "title": "Producten",
+      "description": "Importeer AH-producten die je echt koopt, zodat ze later aan ingrediënten kunnen worden gekoppeld.",
+      "importTitle": "Product importeren",
+      "importCopy": "Bewaar titel, prijs, afbeelding en AH-identifiers voor je eigen boodschappen-catalogus.",
+      "urlLabel": "AH-product-URL",
+      "urlPlaceholder": "https://www.ah.nl/producten/product/...",
+      "button": "Product importeren",
+      "emptyTitle": "Nog geen producten geïmporteerd",
+      "emptyText": "Plak hierboven een AH-product-URL om je catalogus te vullen.",
+      "priceLabel": "Prijs",
+      "unitLabel": "Eenheid",
+      "sourceLabel": "Bron",
+      "openSource": "Product openen"
+    },
+    "week": {
+      "title": "Weekmenu",
+      "description": "Wijs recepten toe aan dagen, kies het aantal personen en laat de backend de hoeveelheden schalen.",
+      "recipeLabel": "Recept",
+      "dayLabel": "Dag",
+      "personsLabel": "Personen",
+      "button": "Toevoegen aan week",
+      "removeLabel": "Verwijderen",
+      "emptyTitle": "Nog geen weekplanning",
+      "emptyText": "Kies een recept, selecteer een dag en voeg de eerste maaltijd toe aan het menu.",
+      "days": {
+        "monday": "Maandag",
+        "tuesday": "Dinsdag",
+        "wednesday": "Woensdag",
+        "thursday": "Donderdag",
+        "friday": "Vrijdag",
+        "saturday": "Zaterdag",
+        "sunday": "Zondag"
+      }
+    },
+    "shopping": {
+      "title": "Boodschappenlijst / winkelmandje",
+      "description": "Genereer een exportklare boodschappenlijst uit je weekplanning en zie welke items al matchen met geïmporteerde producten.",
+      "generateButton": "Boodschappenlijst genereren",
+      "copyButton": "Exporttekst kopiëren",
+      "refreshButton": "Lijst vernieuwen",
+      "exportTitle": "Exportregels",
+      "exportCopy": "Deze regels zijn klaar om te plakken in een mandje, notitie of shopping-app.",
+      "itemsTitle": "Geaggregeerde boodschappen",
+      "emptyTitle": "Nog geen boodschappen om te exporteren",
+      "emptyText": "Maak eerst een weekplanning en genereer daarna de lijst op basis van de huidige recepten.",
+      "matchedLabel": "Gematcht product",
+      "searchLabel": "Zoeken bij AH",
+      "productLabel": "Geïmporteerd product",
+      "exportReady": "Exportklare lijst",
+      "exportHint": "De backend heeft al ingrediënten samengevoegd en waar mogelijk producten gekoppeld.",
+      "cartLabel": "Intentie voor winkelmandje"
+    }
+  },
+  "tutorial": {
+    "title": "Handleiding",
+    "subtitle": "Blader door het app-proces in hoofdstukken. De mediavakken ondersteunen screenshots of elk asset dat je in /public/tutorial plaatst.",
+    "backToApp": "Terug naar de app",
+    "assetHint": "Deze visuals laden vanuit /public/tutorial en kunnen op elk moment worden vervangen door screenshots.",
+    "chapters": [
+      {
+        "id": "account",
+        "title": "Account instellen",
+        "summary": "Registreer één keer en log daarna in met je gebruikersnaam of e-mailadres plus wachtwoord.",
+        "steps": [
+          "Open de landingspagina.",
+          "Kies Registreren als je nieuw bent, of Inloggen als het account al bestaat.",
+          "Gebruik een wachtwoord van minimaal acht tekens.",
+          "Het inlogformulier accepteert gebruikersnaam of e-mail, wat jij het makkelijkst vindt."
+        ],
+        "api": "POST /auth/register en POST /auth/login",
+        "asset": {
+          "src": "/tutorial/account.svg",
+          "alt": "Landingspagina met het auth-paneel",
+          "caption": "De landingspagina houdt het inlogproces zichtbaar zonder het productverhaal te verstoppen."
+        }
+      },
+      {
+        "id": "recipes",
+        "title": "AH-recepten importeren",
+        "summary": "Plak een Allerhande-URL en laat de backend het recept, de ingrediënten, de instructies en de basisporties verwerken.",
+        "steps": [
+          "Open het tabblad Recepten.",
+          "Plak een AH Allerhande-recept-URL.",
+          "Start de async importtaak om een zichtbare wachtrij- en parse-status te krijgen.",
+          "Wanneer de taak slaagt, verschijnt het recept in je collectie."
+        ],
+        "api": "POST /recipes/import-jobs en GET /import-jobs/{id}",
+        "asset": {
+          "src": "/tutorial/recipes.svg",
+          "alt": "Voortgangspaneel voor receptimport",
+          "caption": "Receptimport gebruikt een zichtbare statuskaart zodat parsen nooit onduidelijk voelt."
+        }
+      },
+      {
+        "id": "products",
+        "title": "AH-producten importeren",
+        "summary": "Sla producten op die je al koopt, zodat boodschappen later met je catalogus kunnen worden gematcht.",
+        "steps": [
+          "Open het tabblad Producten.",
+          "Plak een AH-product-URL.",
+          "Importeer het product om titel, prijs, afbeelding, eenheid en AH-id op te slaan.",
+          "Geïmporteerde producten zijn beschikbaar voor het matchen van boodschappen."
+        ],
+        "api": "POST /products/import",
+        "asset": {
+          "src": "/tutorial/products.svg",
+          "alt": "Productimport en cataloguskaarten",
+          "caption": "Geïmporteerde producten worden onderdeel van je persoonlijke catalogus voor later matchen."
+        }
+      },
+      {
+        "id": "week",
+        "title": "Het weekmenu opbouwen",
+        "summary": "Wijs recepten toe aan weekdagen en kies hoeveel mensen elke maaltijd eten.",
+        "steps": [
+          "Open Weekmenu.",
+          "Kies een recept uit de collectie.",
+          "Selecteer een dag en het aantal personen.",
+          "Voeg regels toe of verwijder ze totdat de weekplanning klopt."
+        ],
+        "api": "POST /weekplan en DELETE /weekplan/{id}",
+        "asset": {
+          "src": "/tutorial/weekplan.svg",
+          "alt": "Weekplanner met dagkaarten",
+          "caption": "Weekplanning blijft leesbaar doordat items per dag worden gegroepeerd."
+        }
+      },
+      {
+        "id": "shopping",
+        "title": "De boodschappenlijst genereren",
+        "summary": "Bundel hoeveelheden, toon productmatches en kopieer de exporttekst wanneer je klaar bent om te winkelen.",
+        "steps": [
+          "Open het tabblad Boodschappenlijst / winkelmandje.",
+          "Genereer de lijst vanuit de huidige weekplanning.",
+          "Bekijk gematchte producten of AH-zoeklinks.",
+          "Kopieer de exporttekst naar de app of workflow van je keuze."
+        ],
+        "api": "GET /shopping-list en GET /shopping-list/export",
+        "asset": {
+          "src": "/tutorial/shopping.svg",
+          "alt": "Boodschappenlijst met exportpaneel",
+          "caption": "Het exportpaneel maakt de winkelintentie expliciet in plaats van die te verstoppen achter een generieke lijst."
+        }
+      },
+      {
+        "id": "jobs",
+        "title": "Async importtaken",
+        "summary": "Receptimporten draaien op de achtergrond, waardoor laadstatus zichtbaar en voorspelbaar blijft.",
+        "steps": [
+          "Maak een taak aan met de recept-URL.",
+          "Poll het taak-endpoint totdat de status succeeded of failed wordt.",
+          "Ververs de receptenlijst zodra de taak klaar is.",
+          "Gebruik dit pad wanneer je zichtbare laadinformatie wilt."
+        ],
+        "api": "POST /recipes/import-jobs en GET /import-jobs/{id}",
+        "asset": {
+          "src": "/tutorial/jobs.svg",
+          "alt": "Importtaakstatus als tijdlijn",
+          "caption": "De tijdlijn geeft de UI een eerlijke laadstatus zonder te gokken."
+        }
+      }
+    ]
+  }
+}

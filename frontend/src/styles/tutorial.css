@@ -1,0 +1,124 @@
+.tutorial-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.34fr) minmax(0, 0.66fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.chapter-nav {
+  display: grid;
+  gap: 0.6rem;
+  position: sticky;
+  top: 5.45rem;
+}
+
+.chapter-button {
+  width: 100%;
+  text-align: left;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid transparent;
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+
+.chapter-button:hover {
+  transform: translateY(-1px);
+}
+
+.chapter-button.is-active {
+  background: var(--surface-strong);
+  color: var(--text-strong);
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+
+.chapter-number {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.75rem;
+  margin-right: 0;
+}
+
+.chapter-panel {
+  padding: 1.15rem;
+}
+
+.chapter-title {
+  font-size: clamp(1.9rem, 3vw, 2.55rem);
+}
+
+.chapter-summary {
+  max-width: 68ch;
+}
+
+.chapter-api {
+  background: color-mix(in srgb, var(--surface-strong) 80%, transparent);
+}
+
+.chapter-steps {
+  gap: 0.7rem;
+}
+
+.step-row {
+  padding: 0.88rem 0.95rem;
+}
+
+.step-index {
+  width: 2rem;
+  height: 2rem;
+}
+
+.media-card {
+  padding: 0.9rem;
+  border-radius: 1.15rem;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 82%, transparent), var(--surface));
+  border: 1px solid var(--border);
+}
+
+.media-image,
+.media-fallback {
+  aspect-ratio: 16 / 10;
+}
+
+.media-caption {
+  line-height: 1.6;
+}
+
+.media-fallback {
+  border-radius: 1rem;
+}
+
+@media (max-width: 1120px) {
+  .tutorial-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .chapter-nav {
+    position: static;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(220px, 1fr);
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+}
+
+@media (max-width: 780px) {
+  .chapter-nav {
+    grid-auto-flow: row;
+    grid-auto-columns: unset;
+  }
+
+  .chapter-button {
+    width: 100%;
+  }
+
+  .chapter-panel,
+  .media-card {
+    padding: 1rem;
+  }
+}

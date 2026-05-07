@@ -1,0 +1,1 @@
+window.__BOODSCHAPPEN_CONFIG__ = window.__BOODSCHAPPEN_CONFIG__ || {};
