@@ -220,7 +220,7 @@
         ],
         "api": "POST /auth/register and POST /auth/login",
         "asset": {
-          "src": "/tutorial/account.svg",
+          "src": "/tutorial/account.png",
           "alt": "Landing page with the auth panel",
           "caption": "The landing page keeps the sign-in flow visible without hiding the product story."
         }
@@ -237,7 +237,7 @@
         ],
         "api": "POST /recipes/import-jobs and GET /import-jobs/{id}",
         "asset": {
-          "src": "/tutorial/recipes.svg",
+          "src": "/tutorial/recipes.png",
           "alt": "Recipe import progress panel",
           "caption": "Recipe import uses a visible status card so the parser never feels opaque."
         }
@@ -254,7 +254,7 @@
         ],
         "api": "POST /products/import",
         "asset": {
-          "src": "/tutorial/products.svg",
+          "src": "/tutorial/products.png",
           "alt": "Product import and catalog cards",
           "caption": "Imported products become part of your personal catalog for later matching."
         }
@@ -271,7 +271,7 @@
         ],
         "api": "POST /weekplan and DELETE /weekplan/{id}",
         "asset": {
-          "src": "/tutorial/weekplan.svg",
+          "src": "/tutorial/weekplan.png",
           "alt": "Week planner with day cards",
           "caption": "Week planning stays readable by grouping entries per day."
         }
@@ -288,7 +288,7 @@
         ],
         "api": "GET /shopping-list and GET /shopping-list/export",
         "asset": {
-          "src": "/tutorial/shopping.svg",
+          "src": "/tutorial/shopping.png",
           "alt": "Shopping list export panel",
           "caption": "The export panel makes the shopping intent explicit instead of hiding it behind a generic list."
         }
@@ -305,7 +305,7 @@
         ],
         "api": "POST /recipes/import-jobs and GET /import-jobs/{id}",
         "asset": {
-          "src": "/tutorial/jobs.svg",
+          "src": "/tutorial/jobs.png",
           "alt": "Import job status timeline",
           "caption": "The job timeline gives the UI a truthful loading state without guessing."
         }

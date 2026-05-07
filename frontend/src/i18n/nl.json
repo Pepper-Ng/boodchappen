@@ -220,7 +220,7 @@
         ],
         "api": "POST /auth/register en POST /auth/login",
         "asset": {
-          "src": "/tutorial/account.svg",
+          "src": "/tutorial/account.png",
           "alt": "Landingspagina met het auth-paneel",
           "caption": "De landingspagina houdt het inlogproces zichtbaar zonder het productverhaal te verstoppen."
         }
@@ -237,7 +237,7 @@
         ],
         "api": "POST /recipes/import-jobs en GET /import-jobs/{id}",
         "asset": {
-          "src": "/tutorial/recipes.svg",
+          "src": "/tutorial/recipes.png",
           "alt": "Voortgangspaneel voor receptimport",
           "caption": "Receptimport gebruikt een zichtbare statuskaart zodat parsen nooit onduidelijk voelt."
         }
@@ -254,7 +254,7 @@
         ],
         "api": "POST /products/import",
         "asset": {
-          "src": "/tutorial/products.svg",
+          "src": "/tutorial/products.png",
           "alt": "Productimport en cataloguskaarten",
           "caption": "Geïmporteerde producten worden onderdeel van je persoonlijke catalogus voor later matchen."
         }
@@ -271,7 +271,7 @@
         ],
         "api": "POST /weekplan en DELETE /weekplan/{id}",
         "asset": {
-          "src": "/tutorial/weekplan.svg",
+          "src": "/tutorial/weekplan.png",
           "alt": "Weekplanner met dagkaarten",
           "caption": "Weekplanning blijft leesbaar doordat items per dag worden gegroepeerd."
         }
@@ -288,7 +288,7 @@
         ],
         "api": "GET /shopping-list en GET /shopping-list/export",
         "asset": {
-          "src": "/tutorial/shopping.svg",
+          "src": "/tutorial/shopping.png",
           "alt": "Boodschappenlijst met exportpaneel",
           "caption": "Het exportpaneel maakt de winkelintentie expliciet in plaats van die te verstoppen achter een generieke lijst."
         }
@@ -305,7 +305,7 @@
         ],
         "api": "POST /recipes/import-jobs en GET /import-jobs/{id}",
         "asset": {
-          "src": "/tutorial/jobs.svg",
+          "src": "/tutorial/jobs.png",
           "alt": "Importtaakstatus als tijdlijn",
           "caption": "De tijdlijn geeft de UI een eerlijke laadstatus zonder te gokken."
         }
