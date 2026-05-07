@@ -1,46 +1,143 @@
-from pydantic import BaseModel
-from typing import Optional, List
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Literal, Optional
+
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from .services import validate_ah_url as validate_albert_heijn_url
+
+WeekDay = Literal["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+
+class UserOut(BaseModel):
+    id: int
+    username: str
+    email: str
+
 
 class RegisterIn(BaseModel):
-    email: str
-    password: str
+    email: EmailStr
+    password: str = Field(min_length=8)
+    username: Optional[str] = None
 
-class LoginIn(RegisterIn):
-    pass
+
+class LoginIn(BaseModel):
+    password: str = Field(min_length=8)
+    identifier: Optional[str] = None
+    email: Optional[str] = None
+    username: Optional[str] = None
+
+    def login_identifier(self) -> str:
+        return (self.identifier or self.email or self.username or "").strip()
+
 
 class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    user: UserOut
+
 
 class ProductIn(BaseModel):
     ah_url: str
 
+    @field_validator("ah_url")
+    @classmethod
+    def validate_ah_source_url(cls, value: str) -> str:
+        return validate_albert_heijn_url(value)
+
+
 class ProductOut(BaseModel):
     id: int
     ah_id: str
+    source_url: str
     title: str
     image: Optional[str]
     price: Optional[float]
     unit: Optional[str]
+    description: Optional[str]
+    created_at: datetime
+
 
 class RecipeImportIn(BaseModel):
     url: str
 
+    @field_validator("url")
+    @classmethod
+    def validate_recipe_source_url(cls, value: str) -> str:
+        return validate_albert_heijn_url(value)
+
+
 class RecipeIngredientOut(BaseModel):
     name: str
+    normalized_name: str
     quantity: float
     unit: str
+    raw_text: str
+
 
 class RecipeOut(BaseModel):
     id: int
+    source_url: str
+    external_id: Optional[str]
     name: str
     description: Optional[str]
     image: Optional[str]
     instructions: str
     base_persons: int
-    ingredients: List[RecipeIngredientOut]
+    ingredients: list[RecipeIngredientOut]
+    created_at: datetime
+
+
+class ImportJobOut(BaseModel):
+    id: str
+    job_type: str
+    source_url: str
+    status: str
+    recipe_id: Optional[int]
+    error: Optional[str]
+    created_at: datetime
+    started_at: Optional[datetime]
+    completed_at: Optional[datetime]
+
 
 class WeekPlanIn(BaseModel):
+    day: WeekDay
+    recipe_id: int
+    persons: int = Field(ge=1)
+
+    @field_validator("day", mode="before")
+    @classmethod
+    def normalize_day(cls, value: str) -> str:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
+
+class WeekPlanOut(BaseModel):
+    id: int
     day: str
     recipe_id: int
+    recipe_name: str
     persons: int
+    created_at: datetime
+
+
+class ShoppingListItemOut(BaseModel):
+    name: str
+    normalized_name: str
+    quantity: float
+    unit: str
+    product_id: Optional[int]
+    product_title: Optional[str]
+    product_url: Optional[str]
+    search_url: Optional[str]
+
+
+class ShoppingListOut(BaseModel):
+    items: list[ShoppingListItemOut]
+    export_lines: list[str]
+
+
+class HealthOut(BaseModel):
+    status: str
