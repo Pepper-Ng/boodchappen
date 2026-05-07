@@ -147,6 +147,22 @@ function snippet(value, maxLength = 140) {
   return text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text;
 }
 
+function shortExportLine(item, locale) {
+  const quantity = Number(item?.quantity || 0);
+  const parts = [];
+
+  if (quantity > 0) {
+    parts.push(formatQuantity(quantity, locale));
+  }
+
+  if (item?.unit) {
+    parts.push(item.unit);
+  }
+
+  parts.push(item?.name || item?.normalized_name || '');
+  return parts.filter(Boolean).join(' ');
+}
+
 function recipeStatusText(copy, status) {
   const statusMap = {
     queued: copy.dashboard.recipes.loadingQueued,
