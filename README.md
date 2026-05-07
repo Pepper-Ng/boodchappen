@@ -33,7 +33,7 @@ Deployment guidance:
 - `POSTGRES_PASSWORD` and `SECRET_KEY` are required and must be supplied at runtime.
 - Leave `VITE_API_BASE_URL` empty to let the browser call the API on the current origin.
 - Leave `CORS_ORIGINS` empty unless the browser will call the API from a different origin.
-- Publish the frontend on the app origin and route API/docs traffic to the backend service.
+- Publish the frontend on the app origin; the frontend runtime proxies API/docs/health traffic to the backend service internally.
 
 ## Test stack (split-origin)
 Use the standalone test stack with its own env file to run an isolated deployment on separate ports:

@@ -24,8 +24,6 @@ services:
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY to a strong value in your shell or env file}
       ACCESS_TOKEN_EXPIRES_MINUTES: ${ACCESS_TOKEN_EXPIRES_MINUTES:-1440}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
-    ports:
-      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
