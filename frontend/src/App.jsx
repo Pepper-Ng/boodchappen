@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import en from './i18n/en.json';
 import nl from './i18n/nl.json';
 import {
@@ -219,11 +219,40 @@ function NoticeBanner({ notice }) {
   return <div className={`alert ${noticeToneClass(notice.type)}`}>{notice.text}</div>;
 }
 
-function ImageOrFallback({ src, alt, fallback, className, fallbackClassName }) {
+function ImageOrFallback({
+  src,
+  alt,
+  fallback,
+  className,
+  fallbackClassName,
+  interactive = false,
+  onClick,
+}) {
   const [broken, setBroken] = useState(false);
 
   if (src && !broken) {
-    return <img src={src} alt={alt} className={className} onError={() => setBroken(true)} />;
+    const handleKeyDown = interactive && onClick
+      ? (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick();
+        }
+      }
+      : undefined;
+
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className={className}
+        onError={() => setBroken(true)}
+        onClick={interactive ? onClick : undefined}
+        onKeyDown={handleKeyDown}
+        role={interactive ? 'button' : undefined}
+        tabIndex={interactive ? 0 : undefined}
+        aria-label={interactive ? alt : undefined}
+      />
+    );
   }
 
   return <div className={fallbackClassName || className}>{fallback}</div>;
@@ -277,11 +306,68 @@ function OperationStatePanel({ state, loadingTitle, loadingCopy, successTitle, e
 }
 
 function ShellTopBar({ copy, lang, theme, userLabel, onBrandClick, onLangChange, onThemeToggle, actions }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const shellRef = useRef(null);
   const themeToggleLabel = theme === 'dark' ? copy.common.light : copy.common.dark;
 
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      return undefined;
+    }
+
+    function handlePointerDown(event) {
+      const target = event.target;
+      if (shellRef.current && target instanceof Node && !shellRef.current.contains(target)) {
+        setMobileMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileMenuOpen]);
+
+  function closeMobileMenu() {
+    setMobileMenuOpen(false);
+  }
+
+  function handleBrandClick() {
+    closeMobileMenu();
+    onBrandClick();
+  }
+
+  function handleLanguageChange(nextLang) {
+    return () => {
+      closeMobileMenu();
+      onLangChange(nextLang);
+    };
+  }
+
+  function handleThemeClick() {
+    closeMobileMenu();
+    onThemeToggle();
+  }
+
+  function handleActionClick(action) {
+    return () => {
+      closeMobileMenu();
+      action.onClick();
+    };
+  }
+
   return (
-    <header className="page-topbar">
-      <button type="button" className="button button--ghost brand" onClick={onBrandClick}>
+    <header className="page-topbar" ref={shellRef}>
+      <button type="button" className="button button--ghost brand" onClick={handleBrandClick}>
         <span className="brand-mark" aria-hidden="true" />
         <span className="brand-copy">
           <span className="brand-name">{copy.brand.name}</span>
@@ -294,7 +380,7 @@ function ShellTopBar({ copy, lang, theme, userLabel, onBrandClick, onLangChange,
           <button
             type="button"
             className={`button button--pill ${lang === 'nl' ? 'button--active' : 'button--secondary'}`}
-            onClick={() => onLangChange('nl')}
+            onClick={handleLanguageChange('nl')}
             aria-pressed={lang === 'nl'}
           >
             NL
@@ -302,7 +388,7 @@ function ShellTopBar({ copy, lang, theme, userLabel, onBrandClick, onLangChange,
           <button
             type="button"
             className={`button button--pill ${lang === 'en' ? 'button--active' : 'button--secondary'}`}
-            onClick={() => onLangChange('en')}
+            onClick={handleLanguageChange('en')}
             aria-pressed={lang === 'en'}
           >
             EN
@@ -310,7 +396,7 @@ function ShellTopBar({ copy, lang, theme, userLabel, onBrandClick, onLangChange,
         </div>
         <div className="toolbar-group">
           <span className="toolbar-label">{copy.common.theme}</span>
-          <button type="button" className="button button--secondary button--pill" onClick={onThemeToggle}>
+          <button type="button" className="button button--secondary button--pill" onClick={handleThemeClick}>
             {themeToggleLabel}
           </button>
         </div>
@@ -321,7 +407,64 @@ function ShellTopBar({ copy, lang, theme, userLabel, onBrandClick, onLangChange,
               key={action.label}
               type="button"
               className={`button ${action.variant === 'primary' ? 'button--primary' : 'button--secondary'}`}
-              onClick={action.onClick}
+              onClick={handleActionClick(action)}
+              disabled={action.disabled}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <button
+        type="button"
+        className={`button button--secondary nav-hamburger ${mobileMenuOpen ? 'is-open' : ''}`}
+        onClick={() => setMobileMenuOpen((current) => !current)}
+        aria-expanded={mobileMenuOpen}
+        aria-controls="nav-drawer"
+        aria-label={mobileMenuOpen ? copy.common.menuClose : copy.common.menuOpen}
+      >
+        <span className="nav-hamburger-lines" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </span>
+      </button>
+      <div id="nav-drawer" className={`nav-drawer ${mobileMenuOpen ? 'is-open' : ''}`} aria-hidden={!mobileMenuOpen}>
+        <div className="nav-drawer-section">
+          <span className="nav-drawer-label">{copy.common.language}</span>
+          <div className="nav-drawer-row">
+            <button
+              type="button"
+              className={`button button--pill nav-drawer-item ${lang === 'nl' ? 'button--active' : 'button--secondary'}`}
+              onClick={handleLanguageChange('nl')}
+              aria-pressed={lang === 'nl'}
+            >
+              NL
+            </button>
+            <button
+              type="button"
+              className={`button button--pill nav-drawer-item ${lang === 'en' ? 'button--active' : 'button--secondary'}`}
+              onClick={handleLanguageChange('en')}
+              aria-pressed={lang === 'en'}
+            >
+              EN
+            </button>
+          </div>
+        </div>
+        <div className="nav-drawer-section">
+          <span className="nav-drawer-label">{copy.common.theme}</span>
+          <button type="button" className="button button--secondary nav-drawer-item" onClick={handleThemeClick}>
+            {themeToggleLabel}
+          </button>
+        </div>
+        {userLabel ? <span className="chip chip--accent nav-drawer-chip">{userLabel}</span> : null}
+        <div className="nav-drawer-actions">
+          {actions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              className={`button nav-drawer-item ${action.variant === 'primary' ? 'button--primary' : 'button--secondary'}`}
+              onClick={handleActionClick(action)}
               disabled={action.disabled}
             >
               {action.label}
@@ -1187,7 +1330,44 @@ function ShoppingSection({
   );
 }
 
+function TutorialLightbox({ src, alt, onClose }) {
+  const overlayRef = useRef(null);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    overlayRef.current?.focus();
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div ref={overlayRef} tabIndex={-1} className="lightbox-overlay" role="dialog" aria-modal="true" aria-label={alt} onClick={onClose}>
+      <img
+        className="lightbox-img"
+        src={src}
+        alt={alt}
+        onClick={(event) => event.stopPropagation()}
+      />
+    </div>
+  );
+}
+
 function TutorialMedia({ asset }) {
+  const [enlarged, setEnlarged] = useState(false);
+  const handleClose = useCallback(() => setEnlarged(false), []);
+
   return (
     <div className="media-card">
       <ImageOrFallback
@@ -1196,8 +1376,11 @@ function TutorialMedia({ asset }) {
         fallback={<span>{asset.alt}</span>}
         className="media-image"
         fallbackClassName="media-fallback"
+        interactive={Boolean(asset.src)}
+        onClick={() => setEnlarged(true)}
       />
       <p className="media-caption">{asset.caption}</p>
+      {enlarged ? <TutorialLightbox src={asset.src} alt={asset.alt} onClose={handleClose} /> : null}
     </div>
   );
 }
@@ -1260,7 +1443,7 @@ function TutorialScreen({
           </span>
           <h2 className="chapter-title">{activeChapter.title}</h2>
           <p className="chapter-summary">{activeChapter.summary}</p>
-          <span className="chapter-api">{activeChapter.api}</span>
+          {activeChapter.api ? <span className="chapter-api">{activeChapter.api}</span> : null}
           <div className="chapter-steps">
             {activeChapter.steps.map((step, index) => (
               <div key={step} className="step-row">

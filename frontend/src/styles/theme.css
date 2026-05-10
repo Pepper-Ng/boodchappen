@@ -27,7 +27,7 @@
   --radius-sm: 10px;
   --font-display: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
   --font-body: 'Aptos', 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
-  --page-width: min(1500px, calc(100vw - 2rem));
+  --page-width: min(860px, calc(100vw - 2rem));
 }
 
 :root[data-theme='dark'] {

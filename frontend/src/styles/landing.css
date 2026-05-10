@@ -47,9 +47,9 @@
 }
 
 .hero-title {
-  max-width: 11ch;
-  font-size: clamp(3rem, 5.6vw, 6.25rem);
-  line-height: 0.9;
+  max-width: 24ch;
+  font-size: clamp(1.55rem, 2.8vw, 2.4rem);
+  line-height: 0.98;
 }
 
 .hero-subtitle {
@@ -159,8 +159,8 @@
   }
 
   .hero-title {
-    max-width: none;
-    font-size: clamp(2.5rem, 12vw, 4.2rem);
+    max-width: 20ch;
+    font-size: clamp(1.55rem, 2.8vw, 2.4rem);
   }
 
   .feature-grid {

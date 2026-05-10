@@ -18,6 +18,8 @@
     "theme": "Thema",
     "light": "Licht",
     "dark": "Donker",
+    "menuOpen": "Navigatiemenu openen",
+    "menuClose": "Navigatiemenu sluiten",
     "loading": "Laden",
     "import": "Importeren",
     "generate": "Genereren",
@@ -43,7 +45,7 @@
       },
       {
         "title": "Koppel receptingrediënten",
-        "description": "Verwerk Allerhande-recepten naar genormaliseerde ingrediënten die met producten gematcht kunnen worden."
+        "description": "Breng receptingrediënten samen in een nette lijst die je later aan producten kunt koppelen."
       },
       {
         "title": "Genereer een weekboodschappenlijst",
@@ -66,14 +68,14 @@
       }
     ],
     "authTitle": "Toegang tot je account",
-    "authCopy": "Log in met je gebruikersnaam of e-mailadres en een wachtwoord. Nieuwe accounts kunnen een gebruikersnaam toevoegen of die door de backend laten aanmaken.",
+    "authCopy": "Log in met je gebruikersnaam of e-mailadres. Nieuw? Maak een account aan - een gebruikersnaam is optioneel.",
     "authHint": "Inloggen werkt met gebruikersnaam of e-mail."
   },
   "auth": {
     "loginTitle": "Welkom terug",
     "registerTitle": "Account aanmaken",
     "loginHelper": "Gebruik je gebruikersnaam of e-mail met hetzelfde wachtwoord.",
-    "registerHelper": "De gebruikersnaam is optioneel. Als je die overslaat, maakt de backend er automatisch een aan op basis van je e-mail.",
+    "registerHelper": "De gebruikersnaam is optioneel - laat je hem leeg, dan wordt er automatisch een aangemaakt op basis van je e-mailadres.",
     "tabs": {
       "login": "Inloggen",
       "register": "Registreren"
@@ -119,9 +121,9 @@
     },
     "recipes": {
       "title": "Recepten",
-      "description": "Importeer AH / Allerhande-recepten en houd de geparste ingrediënten klaar voor planning.",
+      "description": "Importeer AH / Allerhande-recepten en houd de ingrediënten klaar voor planning.",
       "importTitle": "Recept importeren",
-      "importCopy": "Gebruik de async importtaak voor een zichtbare wachtrij- en parse-status.",
+      "importCopy": "Plak een URL en volg de voortgang terwijl het recept wordt geïmporteerd.",
       "urlLabel": "Allerhande-recept-URL",
       "urlPlaceholder": "https://www.ah.nl/allerhande/recept/...",
       "button": "Recept importeren",
@@ -130,7 +132,7 @@
       "loadingSucceeded": "Receptimport voltooid.",
       "loadingFailed": "Receptimport mislukt.",
       "loadingTitle": "Importvoortgang",
-      "loadingCopy": "De backend importeert het recept op de achtergrond. Zo blijft de UI synchroon met de echte jobstatus.",
+      "loadingCopy": "Je recept wordt op de achtergrond geïmporteerd. Dit paneel wordt automatisch bijgewerkt.",
       "jobsTitle": "Recente importtaken",
       "jobsEmpty": "Nog geen importtaken.",
       "listTitle": "Geïmporteerde recepten",
@@ -143,7 +145,7 @@
       "viewRecipe": "Receptdetails",
       "statusLabels": {
         "queued": "Wacht",
-        "running": "Bezig",
+        "running": "Verwerken",
         "succeeded": "Geïmporteerd",
         "failed": "Mislukt"
       }
@@ -165,7 +167,7 @@
     },
     "week": {
       "title": "Weekmenu",
-      "description": "Wijs recepten toe aan dagen, kies het aantal personen en laat de backend de hoeveelheden schalen.",
+      "description": "Wijs recepten toe aan dagen en kies hoeveel mensen elke maaltijd eten.",
       "recipeLabel": "Recept",
       "dayLabel": "Dag",
       "personsLabel": "Personen",
@@ -198,15 +200,15 @@
       "searchLabel": "Zoeken bij AH",
       "productLabel": "Geïmporteerd product",
       "exportReady": "Exportklare lijst",
-      "exportHint": "De backend heeft al ingrediënten samengevoegd en waar mogelijk producten gekoppeld.",
+      "exportHint": "Ingrediënthoeveelheden uit je weekplanning worden gecombineerd en waar mogelijk gekoppeld.",
       "cartLabel": "Intentie voor winkelmandje"
     }
   },
   "tutorial": {
     "title": "Handleiding",
-    "subtitle": "Blader door het app-proces in hoofdstukken. De mediavakken ondersteunen screenshots of elk asset dat je in /public/tutorial plaatst.",
+    "subtitle": "Blader door de app in hoofdstukken en volg de stappen om te beginnen.",
     "backToApp": "Terug naar de app",
-    "assetHint": "Deze visuals laden vanuit /public/tutorial en kunnen op elk moment worden vervangen door screenshots.",
+    "assetHint": "",
     "chapters": [
       {
         "id": "account",
@@ -218,7 +220,7 @@
           "Gebruik een wachtwoord van minimaal acht tekens.",
           "Het inlogformulier accepteert gebruikersnaam of e-mail, wat jij het makkelijkst vindt."
         ],
-        "api": "POST /auth/register en POST /auth/login",
+        "api": "",
         "asset": {
           "src": "/tutorial/account.png",
           "alt": "Landingspagina met het auth-paneel",
@@ -228,18 +230,18 @@
       {
         "id": "recipes",
         "title": "AH-recepten importeren",
-        "summary": "Plak een Allerhande-URL en laat de backend het recept, de ingrediënten, de instructies en de basisporties verwerken.",
+        "summary": "Plak een Allerhande-URL en breng het recept, de ingrediënten, instructies en porties naar je collectie.",
         "steps": [
           "Open het tabblad Recepten.",
           "Plak een AH Allerhande-recept-URL.",
-          "Start de async importtaak om een zichtbare wachtrij- en parse-status te krijgen.",
+          "Klik op Importeren en volg de voortgang live.",
           "Wanneer de taak slaagt, verschijnt het recept in je collectie."
         ],
-        "api": "POST /recipes/import-jobs en GET /import-jobs/{id}",
+        "api": "",
         "asset": {
           "src": "/tutorial/recipes.png",
           "alt": "Voortgangspaneel voor receptimport",
-          "caption": "Receptimport gebruikt een zichtbare statuskaart zodat parsen nooit onduidelijk voelt."
+          "caption": "Een duidelijke statuskaart maakt de import makkelijk te volgen."
         }
       },
       {
@@ -252,7 +254,7 @@
           "Importeer het product om titel, prijs, afbeelding, eenheid en AH-id op te slaan.",
           "Geïmporteerde producten zijn beschikbaar voor het matchen van boodschappen."
         ],
-        "api": "POST /products/import",
+        "api": "",
         "asset": {
           "src": "/tutorial/products.png",
           "alt": "Productimport en cataloguskaarten",
@@ -269,7 +271,7 @@
           "Selecteer een dag en het aantal personen.",
           "Voeg regels toe of verwijder ze totdat de weekplanning klopt."
         ],
-        "api": "POST /weekplan en DELETE /weekplan/{id}",
+        "api": "",
         "asset": {
           "src": "/tutorial/weekplan.png",
           "alt": "Weekplanner met dagkaarten",
@@ -286,7 +288,7 @@
           "Bekijk gematchte producten of AH-zoeklinks.",
           "Kopieer de exporttekst naar de app of workflow van je keuze."
         ],
-        "api": "GET /shopping-list en GET /shopping-list/export",
+        "api": "",
         "asset": {
           "src": "/tutorial/shopping.png",
           "alt": "Boodschappenlijst met exportpaneel",
@@ -295,19 +297,19 @@
       },
       {
         "id": "jobs",
-        "title": "Async importtaken",
-        "summary": "Receptimporten draaien op de achtergrond, waardoor laadstatus zichtbaar en voorspelbaar blijft.",
+        "title": "Importvoortgang",
+        "summary": "Volg hoe receptimporten van wachtrij tot voltooid gaan zonder de app te verlaten.",
         "steps": [
-          "Maak een taak aan met de recept-URL.",
-          "Poll het taak-endpoint totdat de status succeeded of failed wordt.",
-          "Ververs de receptenlijst zodra de taak klaar is.",
-          "Gebruik dit pad wanneer je zichtbare laadinformatie wilt."
+          "Open het tabblad Recepten.",
+          "Plak een Allerhande-recept-URL.",
+          "Klik op Importeren en volg de voortgang live.",
+          "Wanneer het klaar is, verschijnt het recept in je collectie."
         ],
-        "api": "POST /recipes/import-jobs en GET /import-jobs/{id}",
+        "api": "",
         "asset": {
           "src": "/tutorial/jobs.png",
           "alt": "Importtaakstatus als tijdlijn",
-          "caption": "De tijdlijn geeft de UI een eerlijke laadstatus zonder te gokken."
+          "caption": "De statustijdlijn maakt elke stap van de import makkelijk te volgen."
         }
       }
     ]

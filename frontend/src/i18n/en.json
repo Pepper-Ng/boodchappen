@@ -18,6 +18,8 @@
     "theme": "Theme",
     "light": "Light",
     "dark": "Dark",
+    "menuOpen": "Open navigation menu",
+    "menuClose": "Close navigation menu",
     "loading": "Loading",
     "import": "Import",
     "generate": "Generate",
@@ -43,7 +45,7 @@
       },
       {
         "title": "Connect recipe ingredients",
-        "description": "Parse Allerhande recipes into normalized ingredients that can be matched back to products."
+        "description": "Bring recipe ingredients into a clean list that can be matched back to products."
       },
       {
         "title": "Generate a weekly grocery list",
@@ -66,14 +68,14 @@
       }
     ],
     "authTitle": "Access your account",
-    "authCopy": "Log in with your username or email address and a password. New accounts can add a username or let the backend generate one.",
+    "authCopy": "Sign in with your username or email address. New? Create an account - a username is optional.",
     "authHint": "Login accepts either username or email."
   },
   "auth": {
     "loginTitle": "Welcome back",
     "registerTitle": "Create an account",
     "loginHelper": "Use your username or email with the same password.",
-    "registerHelper": "The username is optional. If you skip it, the backend will create one from your email.",
+    "registerHelper": "The username is optional - if you skip it, one will be created from your email.",
     "tabs": {
       "login": "Log in",
       "register": "Register"
@@ -119,18 +121,18 @@
     },
     "recipes": {
       "title": "Recipes",
-      "description": "Import AH / Allerhande recipes and keep the parsed ingredients ready for planning.",
+      "description": "Import AH / Allerhande recipes and keep the ingredients ready for planning.",
       "importTitle": "Import recipe",
-      "importCopy": "Use the async import job for a visible queued / parsing state.",
+      "importCopy": "Paste a URL and track the progress while the recipe is being imported.",
       "urlLabel": "Allerhande recipe URL",
       "urlPlaceholder": "https://www.ah.nl/allerhande/recept/...",
       "button": "Import recipe",
       "loadingQueued": "Recipe import queued.",
-      "loadingRunning": "Parsing recipe and saving ingredients.",
+      "loadingRunning": "Processing recipe and saving ingredients.",
       "loadingSucceeded": "Recipe import finished.",
       "loadingFailed": "Recipe import failed.",
       "loadingTitle": "Import progress",
-      "loadingCopy": "The backend is importing the recipe in the background. This keeps the UI in sync with the actual job state.",
+      "loadingCopy": "Your recipe is being imported in the background. This panel updates automatically.",
       "jobsTitle": "Recent import jobs",
       "jobsEmpty": "No import jobs yet.",
       "listTitle": "Imported recipes",
@@ -143,7 +145,7 @@
       "viewRecipe": "Recipe details",
       "statusLabels": {
         "queued": "Queued",
-        "running": "Parsing",
+        "running": "Processing",
         "succeeded": "Imported",
         "failed": "Failed"
       }
@@ -165,7 +167,7 @@
     },
     "week": {
       "title": "Week menu",
-      "description": "Assign recipes to days, choose the number of people, and let the backend scale ingredients.",
+      "description": "Assign recipes to days and choose how many people are eating each meal.",
       "recipeLabel": "Recipe",
       "dayLabel": "Day",
       "personsLabel": "Persons",
@@ -198,15 +200,15 @@
       "searchLabel": "Search AH",
       "productLabel": "Imported product",
       "exportReady": "Export-ready list",
-      "exportHint": "The backend already aggregated ingredient quantities and matched products where possible.",
+      "exportHint": "Ingredient quantities from your week plan are combined and matched where possible.",
       "cartLabel": "Shopping cart intent"
     }
   },
   "tutorial": {
     "title": "Tutorial",
-    "subtitle": "Browse the app flow in chapters. The media slots support screenshots or any asset you place in /public/tutorial.",
+    "subtitle": "Browse the app in chapters and follow the steps to get started.",
     "backToApp": "Back to the app",
-    "assetHint": "These visuals load from /public/tutorial and can be replaced with screenshots at any time.",
+    "assetHint": "",
     "chapters": [
       {
         "id": "account",
@@ -218,7 +220,7 @@
           "Use a password with at least eight characters.",
           "The login form accepts username or email, whichever is easier to remember."
         ],
-        "api": "POST /auth/register and POST /auth/login",
+        "api": "",
         "asset": {
           "src": "/tutorial/account.png",
           "alt": "Landing page with the auth panel",
@@ -228,18 +230,18 @@
       {
         "id": "recipes",
         "title": "Import AH recipes",
-        "summary": "Paste an Allerhande URL and let the backend parse the recipe, ingredients, instructions, and base servings.",
+        "summary": "Paste an Allerhande URL and bring the recipe, ingredients, instructions, and servings into your collection.",
         "steps": [
           "Open the Recipes tab.",
           "Paste an AH Allerhande recipe URL.",
-          "Start the async import job to show a live queued and parsing state.",
+          "Hit Import and watch the progress update live.",
           "When the job succeeds, the recipe appears in your collection."
         ],
-        "api": "POST /recipes/import-jobs and GET /import-jobs/{id}",
+        "api": "",
         "asset": {
           "src": "/tutorial/recipes.png",
           "alt": "Recipe import progress panel",
-          "caption": "Recipe import uses a visible status card so the parser never feels opaque."
+          "caption": "A clear status card keeps the import easy to follow."
         }
       },
       {
@@ -252,7 +254,7 @@
           "Import the product to store title, price, image, unit, and AH identifier.",
           "Imported products are available for shopping list matching."
         ],
-        "api": "POST /products/import",
+        "api": "",
         "asset": {
           "src": "/tutorial/products.png",
           "alt": "Product import and catalog cards",
@@ -269,7 +271,7 @@
           "Pick a day and person count.",
           "Add or remove entries until the week plan feels right."
         ],
-        "api": "POST /weekplan and DELETE /weekplan/{id}",
+        "api": "",
         "asset": {
           "src": "/tutorial/weekplan.png",
           "alt": "Week planner with day cards",
@@ -286,7 +288,7 @@
           "Review the matched products or AH search links.",
           "Copy the export text into the app or workflow you prefer."
         ],
-        "api": "GET /shopping-list and GET /shopping-list/export",
+        "api": "",
         "asset": {
           "src": "/tutorial/shopping.png",
           "alt": "Shopping list export panel",
@@ -295,19 +297,19 @@
       },
       {
         "id": "jobs",
-        "title": "Async import jobs",
-        "summary": "Recipe imports run in the background, which makes parsing state visible and predictable.",
+        "title": "Import progress",
+        "summary": "Watch recipe imports move from queued to finished without leaving the app.",
         "steps": [
-          "Create a job with the recipe URL.",
-          "Poll the job endpoint until it becomes succeeded or failed.",
-          "Refresh the recipe list once the job completes.",
-          "Use this flow whenever you want visible loading feedback."
+          "Open the Recipes tab.",
+          "Paste an Allerhande recipe URL.",
+          "Hit Import and watch the progress update live.",
+          "When it finishes, the recipe appears in your collection."
         ],
-        "api": "POST /recipes/import-jobs and GET /import-jobs/{id}",
+        "api": "",
         "asset": {
           "src": "/tutorial/jobs.png",
           "alt": "Import job status timeline",
-          "caption": "The job timeline gives the UI a truthful loading state without guessing."
+          "caption": "The status timeline makes each import step easy to follow."
         }
       }
     ]
