@@ -21,6 +21,10 @@
   margin: 0 auto;
 }
 
+.screen-shell > * {
+  min-width: 0;
+}
+
 .page-topbar {
   display: flex;
   align-items: center;
