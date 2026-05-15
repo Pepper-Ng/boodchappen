@@ -17,6 +17,8 @@
 .screen-shell {
   --shell-topbar-height: 0px;
   --shell-sticky-offset: 0.75rem;
+  width: var(--page-width);
+  margin: 0 auto;
 }
 
 .page-topbar {
@@ -1417,8 +1419,12 @@
 }
 
 @media (max-width: 768px) {
-  .app-shell {
+  .app-shell,
+  .screen-shell {
     width: min(100vw - 1rem, var(--page-width));
+  }
+
+  .app-shell {
     padding-top: 0.75rem;
   }
 
