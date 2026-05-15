@@ -1,7 +1,7 @@
 {
   "brand": {
     "name": "Boodschappen",
-    "tagline": "AH-producten, Allerhande-recepten en weekplanning"
+    "tagline": "Recepten, boodschappen en je weekplan in één overzicht"
   },
   "nav": {
     "home": "Home",
@@ -29,46 +29,49 @@
     "add": "Toevoegen",
     "optional": "Optioneel",
     "open": "Openen",
-    "edit": "Bewerken"
+    "edit": "Bewerken",
+    "close": "Sluiten",
+    "showMore": "Meer tonen",
+    "showLess": "Minder tonen"
   },
   "landing": {
-    "eyebrow": "Nederlandse boodschappenplanning, maar rustiger",
-    "title": "Breng AH-producten, Allerhande-recepten en je weekboodschappen samen in één helder proces.",
-    "subtitle": "Importeer echte AH-data, koppel receptingrediënten aan producten die je al kent en genereer daarna een weeklijst die direct begrijpelijk is.",
+    "eyebrow": "Plan je boodschappen rond de maaltijden die je echt wilt koken",
+    "title": "Breng recepten, producten en je weeklijst samen op één rustig planbord.",
+    "subtitle": "Bewaar de AH-producten die je vaak koopt, importeer Allerhande-recepten en bouw een weekmenu dat uitmondt in een praktische boodschappenlijst zonder losse tabs of notities.",
     "ctaPrimary": "Dashboard openen",
     "ctaSecondary": "Handleiding lezen",
-    "principlesTitle": "De drie kernprincipes",
+    "principlesTitle": "Wat de app bij elkaar houdt",
     "principles": [
       {
         "title": "Importeer AH-producten",
-        "description": "Bewaar titels, prijzen, eenheden, afbeeldingen en product-ID’s van de boodschappen die je echt koopt."
+        "description": "Houd een kleine bibliotheek bij van de AH-artikelen die je echt koopt, inclusief prijs, eenheid en afbeelding."
       },
       {
         "title": "Koppel receptingrediënten",
-        "description": "Breng receptingrediënten samen in een nette lijst die je later aan producten kunt koppelen."
+        "description": "Bekijk geïmporteerde ingrediënten in de app en houd ze dicht bij de producten waar ze bij horen."
       },
       {
         "title": "Genereer een weekboodschappenlijst",
-        "description": "Schaal op aantal personen, bundel duplicaten en exporteer een nette lijst voor de week."
+        "description": "Plan maaltijden per dag, schaal porties op en houd één boodschappenlijst over die prettig werkt."
       }
     ],
-    "workflowTitle": "Hoe het werkt",
+    "workflowTitle": "Een rustiger ritme voor de week",
     "workflow": [
       {
         "title": "Importeren",
-        "description": "Haal product- en receptdata binnen vanuit AH en Allerhande."
+        "description": "Verzamel de recepten en boodschappen waarmee je deze week wilt plannen."
       },
       {
         "title": "Plannen",
-        "description": "Wijs recepten toe aan dagen en stel de portiegrootte per maaltijd in."
+        "description": "Zet elk recept op de juiste dag en bepaal de portiegrootte per maaltijd."
       },
       {
         "title": "Exporteren",
-        "description": "Bundel ingrediënten in een boodschappenlijst die je makkelijk kunt afvinken."
+        "description": "Zet het plan om in een boodschappenlijst die je snel kunt bekijken, kopiëren en gebruiken."
       }
     ],
     "authTitle": "Toegang tot je account",
-    "authCopy": "Log in met je gebruikersnaam of e-mailadres. Nieuw? Maak een account aan - een gebruikersnaam is optioneel.",
+    "authCopy": "Log in met je gebruikersnaam of e-mailadres. Nieuw hier? Maak een account aan en bouw je eigen recepten- en boodschappenbibliotheek op.",
     "authHint": "Inloggen werkt met gebruikersnaam of e-mail."
   },
   "auth": {
@@ -104,7 +107,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "subtitle": "Houd recepten, producten, weekplanning en boodschappenuitvoer op één plek bij.",
+    "subtitle": "Houd recepten, producten, het weekmenu en de boodschappenlijst dichtbij.",
     "welcome": "Hallo, {username}",
     "tabs": {
       "recipes": "Recepten",
@@ -121,9 +124,9 @@
     },
     "recipes": {
       "title": "Recepten",
-      "description": "Importeer AH / Allerhande-recepten en houd de ingrediënten klaar voor planning.",
+      "description": "Importeer Allerhande-recepten, bekijk ze in de app en houd ze klaar voor je planning.",
       "importTitle": "Recept importeren",
-      "importCopy": "Plak een URL en volg de voortgang terwijl het recept wordt geïmporteerd.",
+      "importCopy": "Plak een URL om een recept te importeren terwijl recente taken ernaast zichtbaar blijven.",
       "urlLabel": "Allerhande-recept-URL",
       "urlPlaceholder": "https://www.ah.nl/allerhande/recept/...",
       "button": "Recept importeren",
@@ -135,14 +138,26 @@
       "loadingCopy": "Je recept wordt op de achtergrond geïmporteerd. Dit paneel wordt automatisch bijgewerkt.",
       "jobsTitle": "Recente importtaken",
       "jobsEmpty": "Nog geen importtaken.",
-      "listTitle": "Geïmporteerde recepten",
+      "listTitle": "Receptenbibliotheek",
       "emptyTitle": "Nog geen recepten geïmporteerd",
       "emptyText": "Plak hierboven een Allerhande-URL om het eerste recept toe te voegen.",
       "ingredientsLabel": "ingrediënten",
-      "basePersonsLabel": "basispersonen",
+      "basePersonsLabel": "personen",
       "sourceLabel": "Bron",
       "openSource": "Bron openen",
       "viewRecipe": "Receptdetails",
+      "descriptionTitle": "Beschrijving",
+      "descriptionEmpty": "Dit recept heeft geen aparte beschrijving meegekregen, dus de volledige instructies hieronder zijn de belangrijkste referentie.",
+      "ingredientsTitle": "Ingrediënten",
+      "instructionsTitle": "Instructies",
+      "planningTitle": "Plan dit recept",
+      "planningCopy": "Kies een dag en portiegrootte en voeg het daarna direct toe aan het weekmenu.",
+      "addedToWeek": "Recept toegevoegd aan je weekmenu.",
+      "linkedRecipeLabel": "Recept",
+      "showAllIngredients": "Alle ingrediënten tonen",
+      "showFewerIngredients": "Minder ingrediënten tonen",
+      "showAllInstructions": "Volledige instructies tonen",
+      "showFewerInstructions": "Instructies inklappen",
       "statusLabels": {
         "queued": "Wacht",
         "running": "Verwerken",
@@ -167,12 +182,19 @@
     },
     "week": {
       "title": "Weekmenu",
-      "description": "Wijs recepten toe aan dagen en kies hoeveel mensen elke maaltijd eten.",
+      "description": "Plan je week maaltijd voor maaltijd en houd elke dag makkelijk te overzien.",
       "recipeLabel": "Recept",
       "dayLabel": "Dag",
       "personsLabel": "Personen",
       "button": "Toevoegen aan week",
+      "addError": "Kon het recept niet aan het weekmenu toevoegen.",
       "removeLabel": "Verwijderen",
+      "plannedLabel": "ingepland",
+      "summaryEmpty": "Nog niets gepland",
+      "summarySingle": "Maaltijd gepland",
+      "summaryMultiple": "Maaltijden gepland",
+      "personCountSingle": "Voor {count} persoon",
+      "personCountMultiple": "Voor {count} personen",
       "emptyTitle": "Nog geen weekplanning",
       "emptyText": "Kies een recept, selecteer een dag en voeg de eerste maaltijd toe aan het menu.",
       "days": {
@@ -205,111 +227,112 @@
     }
   },
   "tutorial": {
-    "title": "Handleiding",
-    "subtitle": "Blader door de app in hoofdstukken en volg de stappen om te beginnen.",
+    "title": "Snel beginnen",
+    "subtitle": "Een korte rondleiding die je zonder giswerk van idee naar boodschappenlijst helpt.",
     "backToApp": "Terug naar de app",
     "assetHint": "",
+    "stepsLabel": "stappen",
     "chapters": [
       {
         "id": "account",
-        "title": "Account instellen",
-        "summary": "Registreer één keer en log daarna in met je gebruikersnaam of e-mailadres plus wachtwoord.",
+        "title": "Maak je eigen plek",
+        "summary": "Maak één keer een account aan zodat je recepten, producten en weekplanning bij elkaar blijven.",
         "steps": [
-          "Open de landingspagina.",
-          "Kies Registreren als je nieuw bent, of Inloggen als het account al bestaat.",
-          "Gebruik een wachtwoord van minimaal acht tekens.",
-          "Het inlogformulier accepteert gebruikersnaam of e-mail, wat jij het makkelijkst vindt."
+          "Kies Registreren als dit je eerste bezoek is.",
+          "Gebruik een e-mailadres dat je kent en een wachtwoord dat je onthoudt.",
+          "Log later in met je e-mail of gebruikersnaam, wat voor jou het makkelijkst is.",
+          "Na het inloggen staat je eigen plandashboard meteen klaar."
         ],
         "api": "",
         "asset": {
           "src": "/tutorial/account.png",
           "alt": "Landingspagina met het auth-paneel",
-          "caption": "De landingspagina houdt het inlogproces zichtbaar zonder het productverhaal te verstoppen."
+          "caption": "De landingspagina houdt de eerste keuze simpel: inloggen of je eigen planruimte maken."
         }
       },
       {
         "id": "recipes",
-        "title": "AH-recepten importeren",
-        "summary": "Plak een Allerhande-URL en breng het recept, de ingrediënten, instructies en porties naar je collectie.",
+        "title": "Bewaar recepten die je wilt koken",
+        "summary": "Haal een Allerhande-recept naar de app zodat je het later kunt lezen, plannen en opnieuw gebruiken.",
         "steps": [
-          "Open het tabblad Recepten.",
-          "Plak een AH Allerhande-recept-URL.",
-          "Klik op Importeren en volg de voortgang live.",
-          "Wanneer de taak slaagt, verschijnt het recept in je collectie."
+          "Open Recepten.",
+          "Plak een Allerhande-link van een maaltijd die je wilt maken.",
+          "Start de import en blader ondertussen gerust verder.",
+          "Open daarna de receptkaart om ingrediënten, instructies en plankeuzes te bekijken."
         ],
         "api": "",
         "asset": {
           "src": "/tutorial/recipes.png",
           "alt": "Voortgangspaneel voor receptimport",
-          "caption": "Een duidelijke statuskaart maakt de import makkelijk te volgen."
+          "caption": "Receptdetails blijven in de app, zodat je niet steeds terug hoeft naar de bronpagina."
         }
       },
       {
         "id": "products",
-        "title": "AH-producten importeren",
-        "summary": "Sla producten op die je al koopt, zodat boodschappen later met je catalogus kunnen worden gematcht.",
+        "title": "Houd je vaste AH-producten dichtbij",
+        "summary": "Bouw een kleine catalogus op van de AH-producten die je het vaakst koopt.",
         "steps": [
-          "Open het tabblad Producten.",
-          "Plak een AH-product-URL.",
-          "Importeer het product om titel, prijs, afbeelding, eenheid en AH-id op te slaan.",
-          "Geïmporteerde producten zijn beschikbaar voor het matchen van boodschappen."
+          "Open Producten.",
+          "Plak een productpagina van iets dat je regelmatig koopt.",
+          "Sla het één keer op zodat titel, prijs, afbeelding en eenheid beschikbaar blijven.",
+          "De app kan dat product daarna herkennen in je boodschappenlijst."
         ],
         "api": "",
         "asset": {
           "src": "/tutorial/products.png",
           "alt": "Productimport en cataloguskaarten",
-          "caption": "Geïmporteerde producten worden onderdeel van je persoonlijke catalogus voor later matchen."
+          "caption": "Productkaarten blijven compact, zodat een korte of lange lijst makkelijk scanbaar blijft."
         }
       },
       {
         "id": "week",
-        "title": "Het weekmenu opbouwen",
-        "summary": "Wijs recepten toe aan weekdagen en kies hoeveel mensen elke maaltijd eten.",
+        "title": "Bouw een realistisch weekmenu",
+        "summary": "Vorm de week dag voor dag in plaats van zeven maaltijden in één smalle strook te persen.",
         "steps": [
           "Open Weekmenu.",
-          "Kies een recept uit de collectie.",
-          "Selecteer een dag en het aantal personen.",
-          "Voeg regels toe of verwijder ze totdat de weekplanning klopt."
+          "Kies het recept dat op een specifieke dag hoort.",
+          "Stel in voor hoeveel mensen je kookt.",
+          "Bekijk het weekbord en schuif bij tot het ritme van de week goed voelt."
         ],
         "api": "",
         "asset": {
           "src": "/tutorial/weekplan.png",
           "alt": "Weekplanner met dagkaarten",
-          "caption": "Weekplanning blijft leesbaar doordat items per dag worden gegroepeerd."
+          "caption": "Het weekbord houdt elke dag leesbaar op zowel grote als kleine schermen."
         }
       },
       {
         "id": "shopping",
-        "title": "De boodschappenlijst genereren",
-        "summary": "Bundel hoeveelheden, toon productmatches en kopieer de exporttekst wanneer je klaar bent om te winkelen.",
+        "title": "Maak van het plan een boodschappenlijst",
+        "summary": "Genereer één lijst die je snel kunt bekijken, kopiëren en gebruiken tijdens het winkelen.",
         "steps": [
-          "Open het tabblad Boodschappenlijst / winkelmandje.",
-          "Genereer de lijst vanuit de huidige weekplanning.",
-          "Bekijk gematchte producten of AH-zoeklinks.",
-          "Kopieer de exporttekst naar de app of workflow van je keuze."
+          "Open Boodschappenlijst / winkelmandje.",
+          "Genereer de lijst vanuit het huidige weekmenu.",
+          "Controleer welke ingrediënten al matchen met producten uit je catalogus.",
+          "Kopieer de exporttekst zodra je klaar bent om te winkelen."
         ],
         "api": "",
         "asset": {
           "src": "/tutorial/shopping.png",
           "alt": "Boodschappenlijst met exportpaneel",
-          "caption": "Het exportpaneel maakt de winkelintentie expliciet in plaats van die te verstoppen achter een generieke lijst."
+          "caption": "Het exportpaneel houdt de kant-en-klare lijst dicht bij de gematchte boodschappen."
         }
       },
       {
         "id": "jobs",
-        "title": "Importvoortgang",
-        "summary": "Volg hoe receptimporten van wachtrij tot voltooid gaan zonder de app te verlaten.",
+        "title": "Houd importvoortgang in beeld",
+        "summary": "Een import duurt soms even, dus de app houdt de voortgang zichtbaar zonder je te blokkeren.",
         "steps": [
-          "Open het tabblad Recepten.",
-          "Plak een Allerhande-recept-URL.",
-          "Klik op Importeren en volg de voortgang live.",
-          "Wanneer het klaar is, verschijnt het recept in je collectie."
+          "Start een receptimport vanuit Recepten.",
+          "Zie de status verschuiven van wachtrij naar verwerken en daarna naar gereed.",
+          "Als er iets misgaat, blijft de fout zichtbaar in de taakkaart.",
+          "Wanneer de import slaagt, staat het recept klaar in je bibliotheek."
         ],
         "api": "",
         "asset": {
           "src": "/tutorial/jobs.png",
           "alt": "Importtaakstatus als tijdlijn",
-          "caption": "De statustijdlijn maakt elke stap van de import makkelijk te volgen."
+          "caption": "Recente taken blijven compact, maar tonen nog steeds status en bronlink."
         }
       }
     ]

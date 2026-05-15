@@ -98,6 +98,13 @@ function createEmptyWeekDraft(recipes = []) {
   };
 }
 
+function createRecipeDetailDraft(recipe) {
+  return {
+    day: 'monday',
+    persons: recipe?.base_persons || 4,
+  };
+}
+
 function replaceTemplate(value, variables) {
   return Object.entries(variables).reduce((result, [key, replacement]) => {
     return result.split(`{${key}}`).join(String(replacement));
@@ -130,12 +137,24 @@ function formatQuantity(value, locale) {
   }).format(numericValue);
 }
 
-function hostFromUrl(value) {
-  try {
-    return new URL(value).hostname.replace(/^www\./, '');
-  } catch {
-    return value;
+function normalizeExternalUrl(value) {
+  const source = String(value || '').trim();
+
+  if (!source) {
+    return '';
   }
+
+  try {
+    const url = new URL(source);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
+function hostFromUrl(value) {
+  const source = normalizeExternalUrl(value);
+  return source ? new URL(source).hostname.replace(/^www\./, '') : '';
 }
 
 function snippet(value, maxLength = 140) {
@@ -145,6 +164,41 @@ function snippet(value, maxLength = 140) {
   }
 
   return text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text;
+}
+
+function textParagraphs(value) {
+  return String(value || '')
+    .split(/\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+const focusableSelector = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+function getFocusableElements(container) {
+  if (!container) {
+    return [];
+  }
+
+  return Array.from(container.querySelectorAll(focusableSelector)).filter((element) => {
+    if (!(element instanceof HTMLElement)) {
+      return false;
+    }
+
+    if (element.hidden || element.getAttribute('aria-hidden') === 'true') {
+      return false;
+    }
+
+    const styles = window.getComputedStyle(element);
+    return styles.display !== 'none' && styles.visibility !== 'hidden';
+  });
 }
 
 function shortExportLine(item, locale) {
@@ -161,6 +215,22 @@ function shortExportLine(item, locale) {
 
   parts.push(item?.name || item?.normalized_name || '');
   return parts.filter(Boolean).join(' ');
+}
+
+function weekSummaryText(copy, count) {
+  if (!count) {
+    return copy.dashboard.week.summaryEmpty;
+  }
+
+  return count === 1 ? copy.dashboard.week.summarySingle : copy.dashboard.week.summaryMultiple;
+}
+
+function weekPersonsText(copy, count) {
+  const safeCount = Math.max(1, Number(count) || 1);
+  return replaceTemplate(
+    safeCount === 1 ? copy.dashboard.week.personCountSingle : copy.dashboard.week.personCountMultiple,
+    { count: safeCount }
+  );
 }
 
 function recipeStatusText(copy, status) {
@@ -305,13 +375,27 @@ function OperationStatePanel({ state, loadingTitle, loadingCopy, successTitle, e
   );
 }
 
-function ShellTopBar({ copy, lang, theme, userLabel, onBrandClick, onLangChange, onThemeToggle, actions }) {
+function ShellTopBar({
+  copy,
+  lang,
+  theme,
+  userLabel,
+  onBrandClick,
+  onLangChange,
+  onThemeToggle,
+  actions,
+  mobileNavigation,
+  mode = 'app',
+}) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuEnabled, setMobileMenuEnabled] = useState(() => {
+    return typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(max-width: 768px)').matches : false;
+  });
   const shellRef = useRef(null);
   const themeToggleLabel = theme === 'dark' ? copy.common.light : copy.common.dark;
 
   useEffect(() => {
-    if (!mobileMenuOpen) {
+    if (!mobileMenuOpen || !mobileMenuEnabled) {
       return undefined;
     }
 
@@ -335,7 +419,74 @@ function ShellTopBar({ copy, lang, theme, userLabel, onBrandClick, onLangChange,
       document.removeEventListener('pointerdown', handlePointerDown, true);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [mobileMenuOpen]);
+  }, [mobileMenuEnabled, mobileMenuOpen]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+
+    function handleMediaChange(event) {
+      setMobileMenuEnabled(event.matches);
+      if (!event.matches) {
+        setMobileMenuOpen(false);
+      }
+    }
+
+    setMobileMenuEnabled(mediaQuery.matches);
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleMediaChange);
+
+      return () => {
+        mediaQuery.removeEventListener('change', handleMediaChange);
+      };
+    }
+
+    mediaQuery.addListener(handleMediaChange);
+
+    return () => {
+      mediaQuery.removeListener(handleMediaChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const shellElement = shellRef.current;
+    const screenElement = shellElement?.closest('.screen-shell');
+    if (!shellElement || !screenElement) {
+      return undefined;
+    }
+
+    function syncShellOffsets() {
+      const styles = window.getComputedStyle(shellElement);
+      const top = Number.parseFloat(styles.top) || 0;
+      const marginBottom = Number.parseFloat(styles.marginBottom) || 0;
+      const height = shellElement.getBoundingClientRect().height;
+      const stickyOffset = mode === 'app' ? top + height + marginBottom : 12;
+
+      screenElement.style.setProperty('--shell-topbar-height', `${Math.ceil(height)}px`);
+      screenElement.style.setProperty('--shell-sticky-offset', `${Math.ceil(stickyOffset)}px`);
+    }
+
+    syncShellOffsets();
+
+    const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(syncShellOffsets) : null;
+    resizeObserver?.observe(shellElement);
+    window.addEventListener('resize', syncShellOffsets);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', syncShellOffsets);
+      screenElement.style.removeProperty('--shell-topbar-height');
+      screenElement.style.removeProperty('--shell-sticky-offset');
+    };
+  }, [mode]);
 
   function closeMobileMenu() {
     setMobileMenuOpen(false);
@@ -365,8 +516,15 @@ function ShellTopBar({ copy, lang, theme, userLabel, onBrandClick, onLangChange,
     };
   }
 
+  function handleNavigationClick(item) {
+    return () => {
+      closeMobileMenu();
+      item.onClick();
+    };
+  }
+
   return (
-    <header className="page-topbar" ref={shellRef}>
+    <header className={`page-topbar page-topbar--${mode}`} ref={shellRef}>
       <button type="button" className="button button--ghost brand" onClick={handleBrandClick}>
         <span className="brand-mark" aria-hidden="true" />
         <span className="brand-copy">
@@ -374,68 +532,91 @@ function ShellTopBar({ copy, lang, theme, userLabel, onBrandClick, onLangChange,
           <span className="brand-tagline">{copy.brand.tagline}</span>
         </span>
       </button>
-      <div className="toolbar">
-        <div className="toolbar-group">
-          <span className="toolbar-label">{copy.common.language}</span>
+      {mobileMenuEnabled ? (
+        <>
           <button
             type="button"
-            className={`button button--pill ${lang === 'nl' ? 'button--active' : 'button--secondary'}`}
-            onClick={handleLanguageChange('nl')}
-            aria-pressed={lang === 'nl'}
+            className={`button button--secondary nav-hamburger ${mobileMenuOpen ? 'is-open' : ''}`}
+            onClick={() => setMobileMenuOpen((current) => !current)}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="nav-drawer"
+            aria-label={mobileMenuOpen ? copy.common.menuClose : copy.common.menuOpen}
           >
-            NL
+            <span className="nav-hamburger-lines" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
           </button>
-          <button
-            type="button"
-            className={`button button--pill ${lang === 'en' ? 'button--active' : 'button--secondary'}`}
-            onClick={handleLanguageChange('en')}
-            aria-pressed={lang === 'en'}
-          >
-            EN
-          </button>
-        </div>
-        <div className="toolbar-group">
-          <span className="toolbar-label">{copy.common.theme}</span>
-          <button type="button" className="button button--secondary button--pill" onClick={handleThemeClick}>
-            {themeToggleLabel}
-          </button>
-        </div>
-        {userLabel ? <span className="chip chip--accent">{userLabel}</span> : null}
-        <div className="inline-actions">
-          {actions.map((action) => (
+          <div id="nav-drawer" className={`nav-drawer ${mobileMenuOpen ? 'is-open' : ''}`} aria-hidden={!mobileMenuOpen}>
+            {mobileNavigation ? (
+              <div className="nav-drawer-section">
+                <span className="nav-drawer-label">{mobileNavigation.label}</span>
+                <div className="nav-drawer-actions">
+                  {mobileNavigation.items.map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className={`button button--pill nav-drawer-item ${item.active ? 'button--active' : 'button--secondary'}`}
+                      onClick={handleNavigationClick(item)}
+                      aria-pressed={item.active}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <div className="nav-drawer-section">
+              <span className="nav-drawer-label">{copy.common.language}</span>
+              <div className="nav-drawer-row">
+                <button
+                  type="button"
+                  className={`button button--pill nav-drawer-item ${lang === 'nl' ? 'button--active' : 'button--secondary'}`}
+                  onClick={handleLanguageChange('nl')}
+                  aria-pressed={lang === 'nl'}
+                >
+                  NL
+                </button>
+                <button
+                  type="button"
+                  className={`button button--pill nav-drawer-item ${lang === 'en' ? 'button--active' : 'button--secondary'}`}
+                  onClick={handleLanguageChange('en')}
+                  aria-pressed={lang === 'en'}
+                >
+                  EN
+                </button>
+              </div>
+            </div>
+            <div className="nav-drawer-section">
+              <span className="nav-drawer-label">{copy.common.theme}</span>
+              <button type="button" className="button button--secondary nav-drawer-item" onClick={handleThemeClick}>
+                {themeToggleLabel}
+              </button>
+            </div>
+            {userLabel ? <span className="chip chip--accent nav-drawer-chip">{userLabel}</span> : null}
+            <div className="nav-drawer-actions">
+              {actions.map((action) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  className={`button nav-drawer-item ${action.variant === 'primary' ? 'button--primary' : 'button--secondary'}`}
+                  onClick={handleActionClick(action)}
+                  disabled={action.disabled}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="toolbar">
+          <div className="toolbar-group">
+            <span className="toolbar-label">{copy.common.language}</span>
             <button
-              key={action.label}
               type="button"
-              className={`button ${action.variant === 'primary' ? 'button--primary' : 'button--secondary'}`}
-              onClick={handleActionClick(action)}
-              disabled={action.disabled}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <button
-        type="button"
-        className={`button button--secondary nav-hamburger ${mobileMenuOpen ? 'is-open' : ''}`}
-        onClick={() => setMobileMenuOpen((current) => !current)}
-        aria-expanded={mobileMenuOpen}
-        aria-controls="nav-drawer"
-        aria-label={mobileMenuOpen ? copy.common.menuClose : copy.common.menuOpen}
-      >
-        <span className="nav-hamburger-lines" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </span>
-      </button>
-      <div id="nav-drawer" className={`nav-drawer ${mobileMenuOpen ? 'is-open' : ''}`} aria-hidden={!mobileMenuOpen}>
-        <div className="nav-drawer-section">
-          <span className="nav-drawer-label">{copy.common.language}</span>
-          <div className="nav-drawer-row">
-            <button
-              type="button"
-              className={`button button--pill nav-drawer-item ${lang === 'nl' ? 'button--active' : 'button--secondary'}`}
+              className={`button button--pill ${lang === 'nl' ? 'button--active' : 'button--secondary'}`}
               onClick={handleLanguageChange('nl')}
               aria-pressed={lang === 'nl'}
             >
@@ -443,35 +624,35 @@ function ShellTopBar({ copy, lang, theme, userLabel, onBrandClick, onLangChange,
             </button>
             <button
               type="button"
-              className={`button button--pill nav-drawer-item ${lang === 'en' ? 'button--active' : 'button--secondary'}`}
+              className={`button button--pill ${lang === 'en' ? 'button--active' : 'button--secondary'}`}
               onClick={handleLanguageChange('en')}
               aria-pressed={lang === 'en'}
             >
               EN
             </button>
           </div>
-        </div>
-        <div className="nav-drawer-section">
-          <span className="nav-drawer-label">{copy.common.theme}</span>
-          <button type="button" className="button button--secondary nav-drawer-item" onClick={handleThemeClick}>
-            {themeToggleLabel}
-          </button>
-        </div>
-        {userLabel ? <span className="chip chip--accent nav-drawer-chip">{userLabel}</span> : null}
-        <div className="nav-drawer-actions">
-          {actions.map((action) => (
-            <button
-              key={action.label}
-              type="button"
-              className={`button nav-drawer-item ${action.variant === 'primary' ? 'button--primary' : 'button--secondary'}`}
-              onClick={handleActionClick(action)}
-              disabled={action.disabled}
-            >
-              {action.label}
+          <div className="toolbar-group">
+            <span className="toolbar-label">{copy.common.theme}</span>
+            <button type="button" className="button button--secondary button--pill" onClick={handleThemeClick}>
+              {themeToggleLabel}
             </button>
-          ))}
+          </div>
+          {userLabel ? <span className="chip chip--accent">{userLabel}</span> : null}
+          <div className="inline-actions">
+            {actions.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                className={`button ${action.variant === 'primary' ? 'button--primary' : 'button--secondary'}`}
+                onClick={handleActionClick(action)}
+                disabled={action.disabled}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </header>
   );
 }
@@ -694,7 +875,7 @@ function LandingScreen({
   ];
 
   return (
-    <div className="stack fade-in">
+    <div className="screen-shell screen-shell--landing stack fade-in">
       <ShellTopBar
         copy={copy}
         lang={lang}
@@ -704,6 +885,7 @@ function LandingScreen({
         onLangChange={onLangChange}
         onThemeToggle={onThemeToggle}
         actions={actions}
+        mode="landing"
       />
       <div className="landing-layout">
         <section className="surface surface--soft hero hero-shell">
@@ -775,9 +957,319 @@ function LandingScreen({
   );
 }
 
-function RecipeCard({ copy, recipe, locale }) {
-  const ingredientPreview = recipe.ingredients.slice(0, 3);
+function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, returnFocusRef }) {
+  const dialogRef = useRef(null);
+  const titleRef = useRef(null);
+  const [planDraft, setPlanDraft] = useState(() => createRecipeDetailDraft(recipe));
+  const [planningBusy, setPlanningBusy] = useState(false);
+  const [planningNotice, setPlanningNotice] = useState({ type: '', text: '' });
+  const [showFullDescription, setShowFullDescription] = useState(false);
+  const [showAllIngredients, setShowAllIngredients] = useState(false);
+  const [showAllInstructions, setShowAllInstructions] = useState(false);
+  const titleId = `recipe-detail-title-${recipe.id}`;
+  const descriptionRegionId = `recipe-detail-description-${recipe.id}`;
+  const ingredientsRegionId = `recipe-detail-ingredients-${recipe.id}`;
+  const instructionsRegionId = `recipe-detail-instructions-${recipe.id}`;
+  const descriptionParagraphs = textParagraphs(recipe.description);
+  const instructionSteps = textParagraphs(recipe.instructions);
+  const visibleDescription = showFullDescription ? descriptionParagraphs : descriptionParagraphs.slice(0, 2);
+  const visibleIngredients = showAllIngredients ? recipe.ingredients : recipe.ingredients.slice(0, 6);
+  const visibleInstructions = showAllInstructions ? instructionSteps : instructionSteps.slice(0, 4);
+  const sourceUrl = normalizeExternalUrl(recipe.source_url);
+  const sourceHost = hostFromUrl(sourceUrl);
+  const recipeLead = descriptionParagraphs[0] || sourceHost || snippet(recipe.instructions, 180);
+
+  useEffect(() => {
+    setPlanDraft(createRecipeDetailDraft(recipe));
+    setPlanningBusy(false);
+    setPlanningNotice({ type: '', text: '' });
+    setShowFullDescription(false);
+    setShowAllIngredients(false);
+    setShowAllInstructions(false);
+  }, [recipe.id, recipe.base_persons]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const dialogElement = dialogRef.current;
+
+    document.body.style.overflow = 'hidden';
+    titleRef.current?.focus();
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== 'Tab' || !dialogElement) {
+        return;
+      }
+
+      const focusableElements = getFocusableElements(dialogElement);
+      if (!focusableElements.length) {
+        event.preventDefault();
+        titleRef.current?.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (event.shiftKey) {
+        if (activeElement === firstElement || activeElement === titleRef.current) {
+          event.preventDefault();
+          lastElement.focus();
+        }
+
+        return;
+      }
+
+      if (activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    }
+
+    dialogElement?.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      dialogElement?.removeEventListener('keydown', handleKeyDown);
+
+      if (returnFocusRef?.current instanceof HTMLElement && returnFocusRef.current.isConnected) {
+        returnFocusRef.current.focus();
+      }
+    };
+  }, [onClose, recipe.id, returnFocusRef]);
+
+  async function handlePlanSubmit(event) {
+    event.preventDefault();
+    const nextPersons = Math.max(1, Number(planDraft.persons) || 1);
+    setPlanningBusy(true);
+    setPlanningNotice({ type: '', text: '' });
+
+    try {
+      await onAddToWeek(recipe.id, {
+        day: planDraft.day,
+        persons: nextPersons,
+      });
+      setPlanDraft((current) => ({
+        ...current,
+        persons: nextPersons,
+      }));
+      setPlanningNotice({
+        type: 'success',
+        text: copy.dashboard.recipes.addedToWeek,
+      });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        return;
+      }
+
+      setPlanningNotice({
+        type: 'danger',
+        text: error.message || copy.dashboard.week.addError,
+      });
+    } finally {
+      setPlanningBusy(false);
+    }
+  }
+
+  return (
+    <div className="recipe-detail-overlay" onClick={onClose}>
+      <section
+        ref={dialogRef}
+        className="surface recipe-detail-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="recipe-detail-shell">
+          <div className="recipe-detail-header">
+            <div className="recipe-detail-heading">
+              <span className="eyebrow">{copy.dashboard.recipes.viewRecipe}</span>
+              <h2 id={titleId} ref={titleRef} tabIndex={-1} className="recipe-detail-title">{recipe.name}</h2>
+              <p className="recipe-detail-lead">
+                {recipeLead}
+              </p>
+            </div>
+            <div className="recipe-detail-actions">
+              {sourceUrl ? (
+                <a className="button button--secondary" href={sourceUrl} target="_blank" rel="noreferrer">
+                  {copy.dashboard.recipes.openSource}
+                </a>
+              ) : null}
+              <button type="button" className="button button--ghost" onClick={onClose}>
+                {copy.common.close}
+              </button>
+            </div>
+          </div>
+
+          <div className="recipe-detail-layout">
+            <aside className="recipe-detail-rail">
+              <ImageOrFallback
+                src={recipe.image}
+                alt={recipe.name}
+                fallback={<span>{recipe.name}</span>}
+                className="recipe-detail-cover"
+                fallbackClassName="recipe-thumb recipe-detail-cover"
+              />
+              <div className="recipe-detail-meta">
+                <span className="chip chip--accent">
+                  {recipe.base_persons} {copy.dashboard.recipes.basePersonsLabel}
+                </span>
+                <span className="chip">
+                  {recipe.ingredients.length} {copy.dashboard.recipes.ingredientsLabel}
+                </span>
+                {sourceHost ? <span className="chip">{sourceHost}</span> : null}
+                <span className="chip">{localizeDate(recipe.created_at, locale, { dateStyle: 'medium' })}</span>
+              </div>
+
+              <section className="detail-card detail-card--planning">
+                <div className="section-title-group">
+                  <h3 className="panel-title">{copy.dashboard.recipes.planningTitle}</h3>
+                  <p className="panel-copy">{copy.dashboard.recipes.planningCopy}</p>
+                </div>
+                <NoticeBanner notice={planningNotice} />
+                <form className="recipe-plan-grid" onSubmit={handlePlanSubmit}>
+                  <Field id={`recipe-detail-day-${recipe.id}`} label={copy.dashboard.week.dayLabel}>
+                    <select
+                      id={`recipe-detail-day-${recipe.id}`}
+                      className="select"
+                      value={planDraft.day}
+                      onChange={(event) => setPlanDraft((current) => ({ ...current, day: event.target.value }))}
+                    >
+                      {dayOrder.map((day) => (
+                        <option key={day} value={day}>
+                          {copy.dashboard.week.days[day]}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field id={`recipe-detail-persons-${recipe.id}`} label={copy.dashboard.week.personsLabel}>
+                    <input
+                      id={`recipe-detail-persons-${recipe.id}`}
+                      className="control"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={planDraft.persons}
+                      onChange={(event) => {
+                        const nextValue = event.target.value === '' ? '' : Number(event.target.value);
+                        setPlanDraft((current) => ({ ...current, persons: nextValue }));
+                      }}
+                      required
+                    />
+                  </Field>
+                  <button type="submit" className="button button--primary button--block" disabled={planningBusy}>
+                    {planningBusy ? copy.common.loading : copy.dashboard.week.button}
+                  </button>
+                </form>
+              </section>
+            </aside>
+
+            <div className="recipe-detail-main">
+              <div className="recipe-detail-summary-grid">
+                <section className="detail-card">
+                  <div className="panel-heading">
+                    <h3 className="panel-title">{copy.dashboard.recipes.descriptionTitle}</h3>
+                    {descriptionParagraphs.length > 2 ? (
+                      <button
+                        type="button"
+                        className="link-button detail-toggle"
+                        aria-expanded={showFullDescription}
+                        aria-controls={descriptionRegionId}
+                        onClick={() => setShowFullDescription((current) => !current)}
+                      >
+                        {showFullDescription ? copy.common.showLess : copy.common.showMore}
+                      </button>
+                    ) : null}
+                  </div>
+                  <div id={descriptionRegionId} className="detail-copy-stack">
+                    {visibleDescription.length ? (
+                      visibleDescription.map((paragraph, index) => (
+                        <p key={`${recipe.id}-description-${index + 1}`} className="detail-paragraph">
+                          {paragraph}
+                        </p>
+                      ))
+                    ) : (
+                      <p className="detail-paragraph detail-paragraph--muted">{copy.dashboard.recipes.descriptionEmpty}</p>
+                    )}
+                  </div>
+                </section>
+
+                <section className="detail-card">
+                  <div className="panel-heading">
+                    <h3 className="panel-title">{copy.dashboard.recipes.ingredientsTitle}</h3>
+                    {recipe.ingredients.length > 6 ? (
+                      <button
+                        type="button"
+                        className="link-button detail-toggle"
+                        aria-expanded={showAllIngredients}
+                        aria-controls={ingredientsRegionId}
+                        onClick={() => setShowAllIngredients((current) => !current)}
+                      >
+                        {showAllIngredients
+                          ? copy.dashboard.recipes.showFewerIngredients
+                          : copy.dashboard.recipes.showAllIngredients}
+                      </button>
+                    ) : null}
+                  </div>
+                  <div id={ingredientsRegionId} className="recipe-detail-ingredients">
+                    {visibleIngredients.map((ingredient, index) => (
+                      <div key={`${recipe.id}-ingredient-${index + 1}`} className="recipe-detail-ingredient">
+                        <strong>{ingredient.raw_text}</strong>
+                        <span>
+                          {formatQuantity(ingredient.quantity, locale)} {ingredient.unit}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </div>
+
+              <section className="detail-card detail-card--instructions">
+                <div className="panel-heading">
+                  <h3 className="panel-title">{copy.dashboard.recipes.instructionsTitle}</h3>
+                  {instructionSteps.length > 4 ? (
+                    <button
+                      type="button"
+                      className="link-button detail-toggle"
+                      aria-expanded={showAllInstructions}
+                      aria-controls={instructionsRegionId}
+                      onClick={() => setShowAllInstructions((current) => !current)}
+                    >
+                      {showAllInstructions
+                        ? copy.dashboard.recipes.showFewerInstructions
+                        : copy.dashboard.recipes.showAllInstructions}
+                    </button>
+                  ) : null}
+                </div>
+                <ol id={instructionsRegionId} className="recipe-instruction-list">
+                  {visibleInstructions.map((step, index) => (
+                    <li key={`${recipe.id}-step-${index + 1}`} className="instruction-step">
+                      <span className="instruction-index">{index + 1}</span>
+                      <span className="instruction-copy">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function RecipeCard({ copy, recipe, locale, onOpenDetails }) {
+  const ingredientPreview = recipe.ingredients.slice(0, 2);
   const description = recipe.description ? snippet(recipe.description, 160) : snippet(recipe.instructions, 160);
+  const sourceUrl = normalizeExternalUrl(recipe.source_url);
+  const sourceHost = hostFromUrl(sourceUrl);
 
   return (
     <article className="surface surface--compact recipe-card">
@@ -786,21 +1278,23 @@ function RecipeCard({ copy, recipe, locale }) {
         alt={recipe.name}
         fallback={<span>{recipe.name}</span>}
         className="recipe-cover"
+        fallbackClassName="recipe-thumb"
       />
       <div className="recipe-preview">
         <div className="recipe-intro">
-          <span className="chip chip--accent">
-            {recipe.ingredients.length} {copy.dashboard.recipes.ingredientsLabel}
-          </span>
+          <div className="recipe-meta">
+            <span className="chip chip--accent">
+              {recipe.ingredients.length} {copy.dashboard.recipes.ingredientsLabel}
+            </span>
+            <span className="chip">{recipe.base_persons} {copy.dashboard.recipes.basePersonsLabel}</span>
+          </div>
           <h3 className="recipe-title">{recipe.name}</h3>
           {description ? <p className="recipe-copy">{description}</p> : null}
         </div>
         <div className="recipe-meta">
-          <span className="chip">{recipe.base_persons} {copy.dashboard.recipes.basePersonsLabel}</span>
-          <span className="chip">{hostFromUrl(recipe.source_url)}</span>
+          {sourceHost ? <span className="chip">{sourceHost}</span> : null}
           <span className="chip">{localizeDate(recipe.created_at, locale, { dateStyle: 'medium' })}</span>
         </div>
-        <p className="recipe-snippet">{snippet(recipe.instructions, 180)}</p>
         {ingredientPreview.length ? (
           <div className="recipe-ingredients-list">
             {ingredientPreview.map((ingredient) => (
@@ -814,9 +1308,18 @@ function RecipeCard({ copy, recipe, locale }) {
           </div>
         ) : null}
         <div className="link-row">
-          <a className="link-button" href={recipe.source_url} target="_blank" rel="noreferrer">
-            {copy.dashboard.recipes.openSource}
-          </a>
+          <button
+            type="button"
+            className="button button--secondary button--pill"
+            onClick={(event) => onOpenDetails(recipe.id, event.currentTarget)}
+          >
+            {copy.dashboard.recipes.viewRecipe}
+          </button>
+          {sourceUrl ? (
+            <a className="link-button" href={sourceUrl} target="_blank" rel="noreferrer">
+              {copy.dashboard.recipes.openSource}
+            </a>
+          ) : null}
         </div>
       </div>
     </article>
@@ -824,6 +1327,9 @@ function RecipeCard({ copy, recipe, locale }) {
 }
 
 function ProductCard({ copy, product, locale }) {
+  const sourceUrl = normalizeExternalUrl(product.source_url);
+  const sourceHost = hostFromUrl(sourceUrl);
+
   return (
     <article className="surface surface--compact product-card">
       <ImageOrFallback
@@ -841,37 +1347,44 @@ function ProductCard({ copy, product, locale }) {
         <div className="product-meta">
           <span className="chip">{copy.dashboard.products.priceLabel}: {formatPrice(product.price, locale)}</span>
           {product.unit ? <span className="chip">{copy.dashboard.products.unitLabel}: {product.unit}</span> : null}
-          <span className="chip">{hostFromUrl(product.source_url)}</span>
+          {sourceHost ? <span className="chip">{sourceHost}</span> : null}
         </div>
-        <div className="detail-row">
-          <span className="detail-label">{copy.dashboard.products.sourceLabel}</span>
-          <span className="detail-value">{hostFromUrl(product.source_url)}</span>
-        </div>
-        <div className="link-row">
-          <a className="link-button" href={product.source_url} target="_blank" rel="noreferrer">
-            {copy.dashboard.products.openSource}
-          </a>
-        </div>
+        {sourceHost ? (
+          <div className="detail-row">
+            <span className="detail-label">{copy.dashboard.products.sourceLabel}</span>
+            <span className="detail-value">{sourceHost}</span>
+          </div>
+        ) : null}
+        {sourceUrl ? (
+          <div className="link-row">
+            <a className="link-button" href={sourceUrl} target="_blank" rel="noreferrer">
+              {copy.dashboard.products.openSource}
+            </a>
+          </div>
+        ) : null}
       </div>
     </article>
   );
 }
 
-function JobCard({ copy, job, locale }) {
+function JobCard({ copy, job, locale, compact = false }) {
   const statusLabel = copy.dashboard.recipes.statusLabels[job.status] || job.status;
+  const sourceText = String(job.source_url || '').trim();
+  const sourceHost = hostFromUrl(job.source_url);
+  const sourceTitle = sourceHost || sourceText;
 
   return (
-    <article className="surface surface--compact job-card">
+    <article className={`surface surface--compact job-card ${compact ? 'job-card--compact' : ''}`}>
       <div className="job-meta">
         <span className={`job-status ${jobStatusClass(job.status)}`}>{statusLabel}</span>
         <span className="chip">{localizeDate(job.created_at, locale, { dateStyle: 'medium', timeStyle: 'short' })}</span>
       </div>
-      <h3 className="job-title">{hostFromUrl(job.source_url)}</h3>
-      <p className="job-copy">{job.source_url}</p>
+      {sourceTitle ? <h3 className="job-title">{sourceTitle}</h3> : null}
+      {sourceText && sourceText !== sourceTitle ? <p className="job-copy">{sourceText}</p> : null}
       <div className="job-details">
         {job.recipe_id ? (
           <div className="detail-row">
-            <span className="detail-label">Recipe</span>
+            <span className="detail-label">{copy.dashboard.recipes.linkedRecipeLabel}</span>
             <span className="detail-value">#{job.recipe_id}</span>
           </div>
         ) : null}
@@ -925,8 +1438,23 @@ function RecipesSection({
   onRecipeUrlChange,
   recipeImportState,
   onImportRecipe,
+  onAddRecipeToWeek,
 }) {
-  const recentJobs = workspace.jobs.slice(0, 5);
+  const [selectedRecipeId, setSelectedRecipeId] = useState(null);
+  const detailTriggerRef = useRef(null);
+  const recentJobs = workspace.jobs.slice(0, 4);
+  const selectedRecipe = workspace.recipes.find((recipe) => recipe.id === selectedRecipeId) || null;
+
+  useEffect(() => {
+    if (selectedRecipeId && !workspace.recipes.some((recipe) => recipe.id === selectedRecipeId)) {
+      setSelectedRecipeId(null);
+    }
+  }, [selectedRecipeId, workspace.recipes]);
+
+  function handleOpenDetails(recipeId, triggerElement) {
+    detailTriggerRef.current = triggerElement;
+    setSelectedRecipeId(recipeId);
+  }
 
   return (
     <div className="dashboard-grid fade-in">
@@ -987,7 +1515,7 @@ function RecipesSection({
           {recentJobs.length ? (
             <div className="job-stack">
               {recentJobs.map((job) => (
-                <JobCard key={job.id} copy={copy} job={job} locale={locale} />
+                <JobCard key={job.id} copy={copy} job={job} locale={locale} compact />
               ))}
             </div>
           ) : (
@@ -1003,7 +1531,13 @@ function RecipesSection({
         {workspace.recipes.length ? (
           <div className="recipe-grid">
             {workspace.recipes.map((recipe) => (
-              <RecipeCard key={recipe.id} copy={copy} recipe={recipe} locale={locale} />
+              <RecipeCard
+                key={recipe.id}
+                copy={copy}
+                recipe={recipe}
+                locale={locale}
+                onOpenDetails={handleOpenDetails}
+              />
             ))}
           </div>
         ) : (
@@ -1013,6 +1547,16 @@ function RecipesSection({
           </div>
         )}
       </section>
+      {selectedRecipe ? (
+        <RecipeDetailDialog
+          copy={copy}
+          recipe={selectedRecipe}
+          locale={locale}
+          onClose={() => setSelectedRecipeId(null)}
+          onAddToWeek={onAddRecipeToWeek}
+          returnFocusRef={detailTriggerRef}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1076,25 +1620,35 @@ function ProductsSection({
           <SectionHeader title={copy.dashboard.products.importTitle} />
           {workspace.products.length ? (
             <div className="job-stack">
-              {workspace.products.slice(0, 5).map((product) => (
-                <div key={product.id} className="surface surface--compact job-card">
-                  <div className="job-meta">
-                    <span className="chip chip--accent">{product.ah_id}</span>
-                    <span className="chip">{formatPrice(product.price, locale)}</span>
+              {workspace.products.slice(0, 5).map((product) => {
+                const sourceUrl = normalizeExternalUrl(product.source_url);
+                const sourceHost = hostFromUrl(sourceUrl);
+                const productSummary = snippet(product.description || '', 150) || sourceHost;
+
+                return (
+                  <div key={product.id} className="surface surface--compact job-card">
+                    <div className="job-meta">
+                      <span className="chip chip--accent">{product.ah_id}</span>
+                      <span className="chip">{formatPrice(product.price, locale)}</span>
+                    </div>
+                    <h3 className="job-title">{product.title}</h3>
+                    {productSummary ? <p className="job-copy">{productSummary}</p> : null}
+                    {sourceHost ? (
+                      <div className="detail-row">
+                        <span className="detail-label">{copy.dashboard.products.sourceLabel}</span>
+                        <span className="detail-value">{sourceHost}</span>
+                      </div>
+                    ) : null}
+                    {sourceUrl ? (
+                      <div className="link-row">
+                        <a className="link-button" href={sourceUrl} target="_blank" rel="noreferrer">
+                          {copy.dashboard.products.openSource}
+                        </a>
+                      </div>
+                    ) : null}
                   </div>
-                  <h3 className="job-title">{product.title}</h3>
-                  <p className="job-copy">{snippet(product.description || '', 150) || hostFromUrl(product.source_url)}</p>
-                  <div className="detail-row">
-                    <span className="detail-label">{copy.dashboard.products.sourceLabel}</span>
-                    <span className="detail-value">{hostFromUrl(product.source_url)}</span>
-                  </div>
-                  <div className="link-row">
-                    <a className="link-button" href={product.source_url} target="_blank" rel="noreferrer">
-                      {copy.dashboard.products.openSource}
-                    </a>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="empty-state">
@@ -1207,18 +1761,21 @@ function WeekSection({
           <div className="week-days">
             {groupedEntries.map(({ day, entries }) => (
               <article key={day} className="surface surface--compact day-card">
-                <div className="day-name">{copy.dashboard.week.days[day]}</div>
+                <div className="day-card-head">
+                  <div className="day-card-copy">
+                    <div className="day-name">{copy.dashboard.week.days[day]}</div>
+                    <p className="day-summary">{weekSummaryText(copy, entries.length)}</p>
+                  </div>
+                  <span className="chip">{entries.length}</span>
+                </div>
                 <div className="day-entries">
                   {entries.length ? (
                     entries.map((entry) => (
                       <div key={entry.id} className="plan-row plan-row--compact">
                         <div className="plan-meta">
                           <h3 className="plan-title">{entry.recipe_name}</h3>
-                          <span className="chip chip--accent">
-                            {entry.persons} {copy.dashboard.week.personsLabel.toLowerCase()}
-                          </span>
+                          <span className="chip chip--accent">{weekPersonsText(copy, entry.persons)}</span>
                         </div>
-                        <p className="plan-subtitle">{copy.dashboard.week.dayLabel}: {copy.dashboard.week.days[day]}</p>
                         <div className="inline-actions">
                           <button
                             type="button"
@@ -1409,7 +1966,7 @@ function TutorialScreen({
   ];
 
   return (
-    <div className="stack fade-in">
+    <div className="screen-shell screen-shell--app stack fade-in">
       <ShellTopBar
         copy={copy}
         lang={lang}
@@ -1419,6 +1976,7 @@ function TutorialScreen({
         onLangChange={onLangChange}
         onThemeToggle={onThemeToggle}
         actions={actions}
+        mode="app"
       />
       <section className="surface surface-pad">
         <SectionHeader title={copy.tutorial.title} copy={copy.tutorial.subtitle} note={copy.tutorial.assetHint} />
@@ -1433,17 +1991,28 @@ function TutorialScreen({
               onClick={() => onSelectChapter(chapter.id)}
             >
               <span className="chapter-number">{index + 1}</span>
-              <span>{chapter.title}</span>
+              <span className="chapter-button-copy">
+                <strong>{chapter.title}</strong>
+                <span>{snippet(chapter.summary, 86)}</span>
+              </span>
             </button>
           ))}
         </nav>
         <article className="surface chapter-panel">
-          <span className="chip chip--accent">
-            {activeIndex + 1}/{chapters.length}
-          </span>
-          <h2 className="chapter-title">{activeChapter.title}</h2>
-          <p className="chapter-summary">{activeChapter.summary}</p>
-          {activeChapter.api ? <span className="chapter-api">{activeChapter.api}</span> : null}
+          <div className="chapter-banner">
+            <div className="chapter-copy-stack">
+              <span className="chip chip--accent">
+                {activeIndex + 1}/{chapters.length}
+              </span>
+              <h2 className="chapter-title">{activeChapter.title}</h2>
+              <p className="chapter-summary">{activeChapter.summary}</p>
+              <span className="section-note">
+                {activeChapter.steps.length} {copy.tutorial.stepsLabel}
+              </span>
+              {activeChapter.api ? <span className="chapter-api">{activeChapter.api}</span> : null}
+            </div>
+            {activeChapter.asset ? <TutorialMedia key={activeChapter.id} asset={activeChapter.asset} /> : null}
+          </div>
           <div className="chapter-steps">
             {activeChapter.steps.map((step, index) => (
               <div key={step} className="step-row">
@@ -1452,7 +2021,6 @@ function TutorialScreen({
               </div>
             ))}
           </div>
-          {activeChapter.asset ? <TutorialMedia key={activeChapter.id} asset={activeChapter.asset} /> : null}
         </article>
       </div>
     </div>
@@ -1477,6 +2045,7 @@ function DashboardScreen({
   onRecipeUrlChange,
   recipeImportState,
   onImportRecipe,
+  onAddRecipeToWeek,
   productUrl,
   onProductUrlChange,
   productImportState,
@@ -1516,6 +2085,15 @@ function DashboardScreen({
       variant: 'primary',
     },
   ];
+  const mobileNavigation = {
+    label: copy.dashboard.title,
+    items: dashboardTabs.map((tab) => ({
+      key: tab,
+      label: copy.dashboard.tabs[tab],
+      active: activeSection === tab,
+      onClick: () => onSelectSection(tab),
+    })),
+  };
 
   let content = null;
   if (activeSection === 'recipes') {
@@ -1528,6 +2106,7 @@ function DashboardScreen({
         onRecipeUrlChange={onRecipeUrlChange}
         recipeImportState={recipeImportState}
         onImportRecipe={onImportRecipe}
+        onAddRecipeToWeek={onAddRecipeToWeek}
       />
     );
   } else if (activeSection === 'products') {
@@ -1569,7 +2148,7 @@ function DashboardScreen({
   }
 
   return (
-    <div className="stack fade-in">
+    <div className="screen-shell screen-shell--app stack fade-in">
       <ShellTopBar
         copy={copy}
         lang={lang}
@@ -1579,6 +2158,8 @@ function DashboardScreen({
         onLangChange={onLangChange}
         onThemeToggle={onThemeToggle}
         actions={actions}
+        mobileNavigation={mobileNavigation}
+        mode="app"
       />
       <section className="surface surface-pad dashboard-grid">
         <SectionHeader
@@ -2002,16 +2583,15 @@ function App() {
     }
 
     try {
-      await addWeekPlan(session.token, {
-        day: weekDraft.day,
-        recipe_id: Number(weekDraft.recipeId),
-        persons: Number(weekDraft.persons) || 1,
-      });
-      await refreshWorkspace(session.token);
+      await saveWeekPlanEntry(weekDraft.recipeId, weekDraft.day, weekDraft.persons);
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        return;
+      }
+
       setDashboardNotice({
         type: 'danger',
-        text: error.message || copy.dashboard.week.button,
+        text: error.message || copy.dashboard.week.addError,
       });
     }
   }
@@ -2086,6 +2666,34 @@ function App() {
 
   async function onRefreshShopping() {
     await refreshWorkspace(session.token);
+  }
+
+  async function saveWeekPlanEntry(recipeId, day, persons) {
+    const nextPersons = Math.max(1, Number(persons) || 1);
+    try {
+      await addWeekPlan(session.token, {
+        day,
+        recipe_id: Number(recipeId),
+        persons: nextPersons,
+      });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        clearSession(error.message);
+      }
+
+      throw error;
+    }
+
+    setWeekDraft({
+      day,
+      recipeId: String(recipeId),
+      persons: nextPersons,
+    });
+    await refreshWorkspace(session.token);
+  }
+
+  async function onAddRecipeToWeek(recipeId, detailDraft) {
+    await saveWeekPlanEntry(recipeId, detailDraft.day, detailDraft.persons);
   }
 
   function onWeekDraftChange(field, value) {
@@ -2202,6 +2810,7 @@ function App() {
         onRecipeUrlChange={setRecipeUrl}
         recipeImportState={recipeImportState}
         onImportRecipe={onImportRecipe}
+        onAddRecipeToWeek={onAddRecipeToWeek}
         productUrl={productUrl}
         onProductUrlChange={setProductUrl}
         productImportState={productImportState}

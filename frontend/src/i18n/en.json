@@ -1,7 +1,7 @@
 {
   "brand": {
     "name": "Boodschappen",
-    "tagline": "AH products, Allerhande recipes, and weekly planning"
+    "tagline": "Recipes, groceries, and your week plan in one view"
   },
   "nav": {
     "home": "Home",
@@ -29,46 +29,49 @@
     "add": "Add",
     "optional": "Optional",
     "open": "Open",
-    "edit": "Edit"
+    "edit": "Edit",
+    "close": "Close",
+    "showMore": "Show more",
+    "showLess": "Show less"
   },
   "landing": {
-    "eyebrow": "Dutch grocery planning, but calmer",
-    "title": "Turn AH products, Allerhande recipes, and your weekly shopping into one clear flow.",
-    "subtitle": "Import real AH data, connect recipe ingredients to products you already know, then generate a weekly grocery list that makes sense at a glance.",
+    "eyebrow": "Plan groceries around the meals you actually want to cook",
+    "title": "Bring recipes, products, and your week list together in one calm planning board.",
+    "subtitle": "Save the AH products you buy most, import Allerhande recipes, and build a weekly menu that turns into a practical grocery list without juggling tabs or notes.",
     "ctaPrimary": "Open dashboard",
     "ctaSecondary": "Read the tutorial",
-    "principlesTitle": "The three core principles",
+    "principlesTitle": "What the app keeps together",
     "principles": [
       {
         "title": "Import AH products",
-        "description": "Store titles, prices, units, images, and product IDs for the exact groceries you buy."
+        "description": "Keep a small library of the AH items you actually buy, including price, unit, and image."
       },
       {
         "title": "Connect recipe ingredients",
-        "description": "Bring recipe ingredients into a clean list that can be matched back to products."
+        "description": "Review imported ingredients in the app and keep them close to the products they belong with."
       },
       {
         "title": "Generate a weekly grocery list",
-        "description": "Scale by person count, merge duplicates, and export a clean list for the week."
+        "description": "Plan meals per day, scale portions, and end up with one grocery list that is easy to use."
       }
     ],
-    "workflowTitle": "How it works",
+    "workflowTitle": "A calmer weekly rhythm",
     "workflow": [
       {
         "title": "Import",
-        "description": "Bring in product and recipe data from AH and Allerhande."
+        "description": "Collect the recipes and grocery items you want to plan with this week."
       },
       {
         "title": "Plan",
-        "description": "Assign recipes to days and tune the portion size per meal."
+        "description": "Place each recipe on the right day and set the portion size for that meal."
       },
       {
         "title": "Export",
-        "description": "Aggregate ingredients into a shopping list that is easy to buy from."
+        "description": "Turn the plan into a grocery list you can quickly review, copy, and shop from."
       }
     ],
     "authTitle": "Access your account",
-    "authCopy": "Sign in with your username or email address. New? Create an account - a username is optional.",
+    "authCopy": "Sign in with your username or email address. New here? Create an account and start your own recipe and grocery library.",
     "authHint": "Login accepts either username or email."
   },
   "auth": {
@@ -104,7 +107,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "subtitle": "Keep recipes, products, week planning, and shopping output in one place.",
+    "subtitle": "Keep recipes, products, the week menu, and the grocery list close at hand.",
     "welcome": "Hello, {username}",
     "tabs": {
       "recipes": "Recipes",
@@ -121,9 +124,9 @@
     },
     "recipes": {
       "title": "Recipes",
-      "description": "Import AH / Allerhande recipes and keep the ingredients ready for planning.",
+      "description": "Import Allerhande recipes, review them in-app, and keep them ready for planning.",
       "importTitle": "Import recipe",
-      "importCopy": "Paste a URL and track the progress while the recipe is being imported.",
+      "importCopy": "Paste a URL to import a recipe while recent jobs stay visible next to it.",
       "urlLabel": "Allerhande recipe URL",
       "urlPlaceholder": "https://www.ah.nl/allerhande/recept/...",
       "button": "Import recipe",
@@ -135,14 +138,26 @@
       "loadingCopy": "Your recipe is being imported in the background. This panel updates automatically.",
       "jobsTitle": "Recent import jobs",
       "jobsEmpty": "No import jobs yet.",
-      "listTitle": "Imported recipes",
+      "listTitle": "Recipe library",
       "emptyTitle": "No recipes imported yet",
       "emptyText": "Paste an Allerhande URL above to add the first recipe.",
       "ingredientsLabel": "ingredients",
-      "basePersonsLabel": "base persons",
+      "basePersonsLabel": "servings",
       "sourceLabel": "Source",
       "openSource": "Open source",
       "viewRecipe": "Recipe details",
+      "descriptionTitle": "Description",
+      "descriptionEmpty": "This recipe did not include a separate description, so the full instructions below are the main reference.",
+      "ingredientsTitle": "Ingredients",
+      "instructionsTitle": "Instructions",
+      "planningTitle": "Plan this recipe",
+      "planningCopy": "Choose a day and serving size, then add it straight to the week menu.",
+      "addedToWeek": "Recipe added to your week menu.",
+      "linkedRecipeLabel": "Recipe",
+      "showAllIngredients": "Show all ingredients",
+      "showFewerIngredients": "Show fewer ingredients",
+      "showAllInstructions": "Show full instructions",
+      "showFewerInstructions": "Collapse instructions",
       "statusLabels": {
         "queued": "Queued",
         "running": "Processing",
@@ -167,12 +182,19 @@
     },
     "week": {
       "title": "Week menu",
-      "description": "Assign recipes to days and choose how many people are eating each meal.",
+      "description": "Plan your week one meal at a time and keep each day easy to scan.",
       "recipeLabel": "Recipe",
       "dayLabel": "Day",
       "personsLabel": "Persons",
       "button": "Add to week",
+      "addError": "Could not add the recipe to the week menu.",
       "removeLabel": "Remove",
+      "plannedLabel": "planned",
+      "summaryEmpty": "Nothing planned yet",
+      "summarySingle": "Meal planned",
+      "summaryMultiple": "Meals planned",
+      "personCountSingle": "For {count} person",
+      "personCountMultiple": "For {count} people",
       "emptyTitle": "No week plan yet",
       "emptyText": "Select a recipe, pick a day, and add the first meal to the menu.",
       "days": {
@@ -205,111 +227,112 @@
     }
   },
   "tutorial": {
-    "title": "Tutorial",
-    "subtitle": "Browse the app in chapters and follow the steps to get started.",
+    "title": "Get started",
+    "subtitle": "A short walkthrough that helps you go from idea to grocery list without guesswork.",
     "backToApp": "Back to the app",
     "assetHint": "",
+    "stepsLabel": "steps",
     "chapters": [
       {
         "id": "account",
-        "title": "Account setup",
-        "summary": "Register once, then sign in with either your username or email address plus password.",
+        "title": "Create your space",
+        "summary": "Create an account once so your recipes, products, and weekly plan stay together.",
         "steps": [
-          "Open the landing page.",
-          "Choose Register if you are new, or Log in if the account already exists.",
-          "Use a password with at least eight characters.",
-          "The login form accepts username or email, whichever is easier to remember."
+          "Choose Register if this is your first visit.",
+          "Use an email you check and a password you will remember.",
+          "Sign in later with your email or username, whichever feels easiest.",
+          "After signing in, your own planning dashboard is ready right away."
         ],
         "api": "",
         "asset": {
           "src": "/tutorial/account.png",
           "alt": "Landing page with the auth panel",
-          "caption": "The landing page keeps the sign-in flow visible without hiding the product story."
+          "caption": "The landing page keeps the first decision simple: sign in or create your own planning space."
         }
       },
       {
         "id": "recipes",
-        "title": "Import AH recipes",
-        "summary": "Paste an Allerhande URL and bring the recipe, ingredients, instructions, and servings into your collection.",
+        "title": "Save recipes you want to cook",
+        "summary": "Bring an Allerhande recipe into the app so you can read it, plan it, and reuse it later.",
         "steps": [
-          "Open the Recipes tab.",
-          "Paste an AH Allerhande recipe URL.",
-          "Hit Import and watch the progress update live.",
-          "When the job succeeds, the recipe appears in your collection."
+          "Open Recipes.",
+          "Paste an Allerhande link for a meal you want to make.",
+          "Start the import and keep browsing while the app finishes it.",
+          "Open the recipe card to review ingredients, instructions, and planning options."
         ],
         "api": "",
         "asset": {
           "src": "/tutorial/recipes.png",
           "alt": "Recipe import progress panel",
-          "caption": "A clear status card keeps the import easy to follow."
+          "caption": "Recipe details stay in the app, so you do not have to bounce back to the source page."
         }
       },
       {
         "id": "products",
-        "title": "Import AH products",
-        "summary": "Save the items you already buy so grocery items can be matched back to your product catalog.",
+        "title": "Keep your usual AH products close",
+        "summary": "Build a small catalog of the AH products you actually buy most often.",
         "steps": [
-          "Open the Products tab.",
-          "Paste an AH product URL.",
-          "Import the product to store title, price, image, unit, and AH identifier.",
-          "Imported products are available for shopping list matching."
+          "Open Products.",
+          "Paste a product page for an item you buy regularly.",
+          "Save it once so the title, price, image, and unit stay available.",
+          "The app can then recognize that product when it appears in your grocery list."
         ],
         "api": "",
         "asset": {
           "src": "/tutorial/products.png",
           "alt": "Product import and catalog cards",
-          "caption": "Imported products become part of your personal catalog for later matching."
+          "caption": "Product cards stay compact, so a short or long list remains easy to scan."
         }
       },
       {
         "id": "week",
-        "title": "Build the week menu",
-        "summary": "Assign recipes to weekdays and choose how many people will eat each meal.",
+        "title": "Build a realistic week menu",
+        "summary": "Shape the week day by day instead of squeezing seven meals into one narrow strip.",
         "steps": [
           "Open Week menu.",
-          "Choose a recipe from the collection.",
-          "Pick a day and person count.",
-          "Add or remove entries until the week plan feels right."
+          "Pick the recipe that belongs on a specific day.",
+          "Set how many people will eat that meal.",
+          "Review the week board and adjust until the pace of the week feels right."
         ],
         "api": "",
         "asset": {
           "src": "/tutorial/weekplan.png",
           "alt": "Week planner with day cards",
-          "caption": "Week planning stays readable by grouping entries per day."
+          "caption": "The week board keeps each day readable on both large and small screens."
         }
       },
       {
         "id": "shopping",
-        "title": "Generate the grocery list",
-        "summary": "Aggregate ingredient quantities, show product matches, and copy the export text when you are ready to shop.",
+        "title": "Turn the plan into a grocery list",
+        "summary": "Generate one list you can quickly review, copy, and shop from.",
         "steps": [
-          "Open the Grocery list / cart tab.",
-          "Generate the list from the current week plan.",
-          "Review the matched products or AH search links.",
-          "Copy the export text into the app or workflow you prefer."
+          "Open Grocery list / cart.",
+          "Generate the list from the current week menu.",
+          "Check which ingredients already match products in your catalog.",
+          "Copy the export text when you are ready to shop."
         ],
         "api": "",
         "asset": {
           "src": "/tutorial/shopping.png",
           "alt": "Shopping list export panel",
-          "caption": "The export panel makes the shopping intent explicit instead of hiding it behind a generic list."
+          "caption": "The export panel keeps the ready-to-copy list close to the matched groceries."
         }
       },
       {
         "id": "jobs",
-        "title": "Import progress",
-        "summary": "Watch recipe imports move from queued to finished without leaving the app.",
+        "title": "Keep import progress in view",
+        "summary": "Imports can take a moment, so the app keeps the progress visible without blocking you.",
         "steps": [
-          "Open the Recipes tab.",
-          "Paste an Allerhande recipe URL.",
-          "Hit Import and watch the progress update live.",
-          "When it finishes, the recipe appears in your collection."
+          "Start a recipe import from the Recipes view.",
+          "Watch the status move from queued to processing to finished.",
+          "If something fails, the error stays visible in the job card.",
+          "When the import succeeds, the recipe is ready in your library."
         ],
         "api": "",
         "asset": {
           "src": "/tutorial/jobs.png",
           "alt": "Import job status timeline",
-          "caption": "The status timeline makes each import step easy to follow."
+          "caption": "Recent jobs stay compact while still showing the status and source link."
         }
       }
     ]
