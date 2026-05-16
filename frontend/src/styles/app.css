@@ -380,6 +380,7 @@
   align-items: center;
   gap: 0.35rem;
   width: fit-content;
+  max-width: 100%;
   border-radius: 999px;
   padding: 0.4rem 0.75rem;
   border: 1px solid var(--border);
@@ -387,6 +388,8 @@
   color: var(--muted);
   font-size: 0.84rem;
   font-weight: 700;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .chip--accent {
@@ -639,11 +642,13 @@
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .section-title-group {
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .section-title {
@@ -659,6 +664,8 @@
   max-width: 70ch;
   color: var(--muted);
   line-height: 1.65;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .section-note {
@@ -736,11 +743,18 @@
 .dashboard-grid {
   display: grid;
   gap: 1rem;
+  min-width: 0;
+}
+
+.dashboard-overview-card,
+.dashboard-content-shell {
+  min-width: 0;
 }
 
 .content-grid {
   display: grid;
   gap: 1rem;
+  min-width: 0;
 }
 
 .content-grid--two {
@@ -780,6 +794,7 @@
   align-items: center;
   gap: 0.55rem;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .import-card,
@@ -792,6 +807,7 @@
 .job-card {
   display: grid;
   gap: 0.9rem;
+  min-width: 0;
 }
 
 .recipe-card,
@@ -846,6 +862,8 @@
   margin: 0;
   font-size: 1.05rem;
   color: var(--text-strong);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .recipe-copy,
@@ -855,6 +873,8 @@
   margin: 0;
   color: var(--muted);
   line-height: 1.6;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .recipe-ingredients,
@@ -872,6 +892,7 @@
   gap: 0.75rem;
   flex-wrap: wrap;
   color: var(--muted);
+  min-width: 0;
 }
 
 .detail-label {
@@ -883,6 +904,8 @@
 .detail-value {
   color: var(--text-strong);
   font-weight: 700;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .list-stack {
@@ -1533,10 +1556,32 @@
 }
 
 @media (max-width: 768px) {
+  .screen-shell--app {
+    width: min(100vw - 0.5rem, var(--page-width));
+  }
+
   .page-topbar {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+  }
+
+  .dashboard-content-shell {
+    display: contents;
+  }
+
+  .section-head {
+    gap: 0.65rem;
+  }
+
+  .section-title {
+    font-size: clamp(1.32rem, 7vw, 1.78rem);
+    line-height: 1.04;
+  }
+
+  .section-copy {
+    max-width: none;
+    line-height: 1.55;
   }
 
   .toolbar {

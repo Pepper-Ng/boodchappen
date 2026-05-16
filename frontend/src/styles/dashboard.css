@@ -651,6 +651,62 @@
 }
 
 @media (max-width: 768px) {
+  .dashboard-overview-card {
+    padding: 0.82rem;
+    border-radius: 1.05rem;
+  }
+
+  .dashboard-grid {
+    gap: 0.78rem;
+  }
+
+  .dashboard-grid .surface-pad {
+    padding: 0.88rem;
+  }
+
+  .content-grid,
+  .content-grid--two,
+  .content-grid--three,
+  .week-layout,
+  .shopping-layout,
+  .job-stack,
+  .week-days {
+    gap: 0.78rem;
+  }
+
+  .import-card,
+  .list-card,
+  .planner-card,
+  .shopping-card,
+  .export-card,
+  .recipe-card,
+  .product-card,
+  .job-card,
+  .day-card {
+    gap: 0.72rem;
+  }
+
+  .job-card,
+  .recipe-card,
+  .product-card,
+  .day-card {
+    padding: 0.82rem;
+  }
+
+  .job-meta,
+  .recipe-meta,
+  .product-meta,
+  .shopping-meta {
+    gap: 0.38rem;
+  }
+
+  .job-status,
+  .import-status,
+  .shopping-match,
+  .chip {
+    padding-inline: 0.62rem;
+  }
+
   .section-tabs {
     display: none;
   }

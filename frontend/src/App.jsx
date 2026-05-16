@@ -2156,9 +2156,17 @@ function DashboardScreen({
       key: tab,
       label: copy.dashboard.tabs[tab],
       active: activeSection === tab,
-      onClick: () => onSelectSection(tab),
+      onClick: () => handleSelectSection(tab),
     })),
   };
+
+  function handleSelectSection(tab) {
+    onSelectSection(tab);
+
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
 
   let content = null;
   if (activeSection === 'recipes') {
@@ -2235,7 +2243,7 @@ function DashboardScreen({
         mobileNavigation={mobileNavigation}
         mode="app"
       />
-      <section className="surface surface-pad dashboard-grid">
+      <section className="surface surface-pad dashboard-grid dashboard-overview-card">
         <SectionHeader
           title={copy.dashboard.title}
           copy={copy.dashboard.subtitle}
@@ -2259,13 +2267,13 @@ function DashboardScreen({
             role="tab"
             aria-selected={activeSection === tab}
             className={`button section-tab ${activeSection === tab ? 'is-active' : ''}`}
-            onClick={() => onSelectSection(tab)}
+            onClick={() => handleSelectSection(tab)}
           >
             {copy.dashboard.tabs[tab]}
           </button>
         ))}
       </div>
-      <section className="surface surface-pad">{content}</section>
+      <section className="dashboard-content-shell">{content}</section>
     </div>
   );
 }
