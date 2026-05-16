@@ -250,7 +250,9 @@ def save_recipe_import(session: Session, owner_id: int, source_url: str, payload
             session.delete(ingredient)
         session.commit()
 
+    products = session.exec(select(Product).where(Product.owner_id == owner_id)).all()
     for ingredient in payload["ingredients"]:
+        matched_product = match_product_to_ingredient(ingredient["normalized_name"], products)
         session.add(
             RecipeIngredient(
                 recipe_id=recipe.id,
@@ -259,6 +261,7 @@ def save_recipe_import(session: Session, owner_id: int, source_url: str, payload
                 quantity=ingredient["quantity"],
                 unit=ingredient["unit"],
                 raw_text=ingredient["raw_text"],
+                product_id=matched_product.id if matched_product else None,
             )
         )
     session.commit()

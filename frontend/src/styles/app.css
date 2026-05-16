@@ -659,6 +659,17 @@
   color: var(--text-strong);
 }
 
+.section-divider-label {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  letter-spacing: -0.02em;
+  color: var(--muted);
+  font-weight: 600;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
 .section-copy {
   margin: 0;
   max-width: 70ch;

@@ -111,6 +111,7 @@
     "subtitle": "Houd recepten, producten, het weekmenu en de boodschappenlijst dichtbij.",
     "welcome": "Hallo, {username}",
     "tabs": {
+      "dashboard": "Dashboard",
       "recipes": "Recepten",
       "products": "Producten",
       "jobs": "Importtaken",

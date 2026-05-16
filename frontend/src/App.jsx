@@ -26,7 +26,7 @@ const storageKeys = {
   language: 'boodschappen.language',
   theme: 'boodschappen.theme',
 };
-const dashboardTabs = ['recipes', 'products', 'jobs', 'week', 'shopping'];
+const dashboardTabs = ['dashboard', 'recipes', 'products', 'jobs', 'week', 'shopping'];
 const dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 function getStoredValue(key) {
@@ -1641,98 +1641,60 @@ function ProductsSection({
         title={copy.dashboard.products.title}
         copy={copy.dashboard.products.description}
       />
-      <div className="content-grid content-grid--two content-grid--products">
-        <section className="surface surface--compact surface-pad import-card import-card--product">
-          <SectionHeader
-            title={copy.dashboard.products.importTitle}
-            copy={copy.dashboard.products.importCopy}
-          />
-          <form className="form-grid" onSubmit={onImportProduct}>
-            <Field id="product-url" label={copy.dashboard.products.urlLabel}>
-              <input
-                id="product-url"
-                className="control"
-                type="url"
-                inputMode="url"
-                placeholder={copy.dashboard.products.urlPlaceholder}
-                value={productUrl}
-                onChange={(event) => onProductUrlChange(event.target.value)}
-                required
-              />
-            </Field>
-            <button
-              type="submit"
-              className="button button--primary button--block button--product-import"
-              disabled={productImportState.status === 'running'}
-            >
-              {productImportState.status === 'running' ? copy.common.loading : copy.dashboard.products.button}
-            </button>
-          </form>
-          <OperationStatePanel
-            state={productImportState}
-            loadingTitle={copy.dashboard.products.importTitle}
-            loadingCopy={copy.dashboard.products.importCopy}
-            successTitle={copy.dashboard.products.importTitle}
-            errorTitle={copy.dashboard.products.importTitle}
-            meta={
-              productImportState.status === 'succeeded' || productImportState.status === 'failed'
-                ? <span className="chip chip--accent">{hostFromUrl(productImportState.sourceUrl)}</span>
-                : null
-            }
-          />
-        </section>
-        <section className="surface surface--compact surface-pad list-card">
-          <SectionHeader title={copy.dashboard.products.importTitle} />
-          {workspace.products.length ? (
-            <div className="job-stack">
-              {workspace.products.slice(0, 5).map((product) => {
-                const sourceUrl = normalizeExternalUrl(product.source_url);
-                const sourceHost = hostFromUrl(sourceUrl);
-                const productSummary = snippet(product.description || '', 150) || sourceHost;
-
-                return (
-                  <div key={product.id} className="surface surface--compact job-card">
-                    <div className="job-meta">
-                      <span className="chip chip--accent">{product.ah_id}</span>
-                      <span className="chip">{formatPrice(product.price, locale)}</span>
-                    </div>
-                    <h3 className="job-title">{product.title}</h3>
-                    {productSummary ? <p className="job-copy">{productSummary}</p> : null}
-                    {sourceHost ? (
-                      <div className="detail-row">
-                        <span className="detail-label">{copy.dashboard.products.sourceLabel}</span>
-                        <span className="detail-value">{sourceHost}</span>
-                      </div>
-                    ) : null}
-                    {sourceUrl ? (
-                      <div className="link-row">
-                        <a className="link-button" href={sourceUrl} target="_blank" rel="noreferrer">
-                          {copy.dashboard.products.openSource}
-                        </a>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <p className="empty-title">{copy.dashboard.products.emptyTitle}</p>
-              <p className="empty-copy">{copy.dashboard.products.emptyText}</p>
-            </div>
-          )}
-        </section>
-      </div>
+      <section className="surface surface--compact surface-pad import-card import-card--product">
+        <SectionHeader
+          title={copy.dashboard.products.importTitle}
+          copy={copy.dashboard.products.importCopy}
+        />
+        <form className="form-grid" onSubmit={onImportProduct}>
+          <Field id="product-url" label={copy.dashboard.products.urlLabel}>
+            <input
+              id="product-url"
+              className="control"
+              type="url"
+              inputMode="url"
+              placeholder={copy.dashboard.products.urlPlaceholder}
+              value={productUrl}
+              onChange={(event) => onProductUrlChange(event.target.value)}
+              required
+            />
+          </Field>
+          <button
+            type="submit"
+            className="button button--primary button--block button--product-import"
+            disabled={productImportState.status === 'running'}
+          >
+            {productImportState.status === 'running' ? copy.common.loading : copy.dashboard.products.button}
+          </button>
+        </form>
+        <OperationStatePanel
+          state={productImportState}
+          loadingTitle={copy.dashboard.products.importTitle}
+          loadingCopy={copy.dashboard.products.importCopy}
+          successTitle={copy.dashboard.products.importTitle}
+          errorTitle={copy.dashboard.products.importTitle}
+          meta={
+            productImportState.status === 'succeeded' || productImportState.status === 'failed'
+              ? <span className="chip chip--accent">{hostFromUrl(productImportState.sourceUrl)}</span>
+              : null
+          }
+        />
+      </section>
       {workspace.products.length ? (
-        <section className="surface surface--compact surface-pad">
-          <SectionHeader title={copy.dashboard.products.title} />
+        <>
+          <h2 className="section-divider-label">{copy.dashboard.products.title}</h2>
           <div className="product-grid">
             {workspace.products.map((product) => (
               <ProductCard key={product.id} copy={copy} product={product} locale={locale} />
             ))}
           </div>
-        </section>
-      ) : null}
+        </>
+      ) : (
+        <div className="empty-state">
+          <p className="empty-title">{copy.dashboard.products.emptyTitle}</p>
+          <p className="empty-copy">{copy.dashboard.products.emptyText}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -2227,6 +2189,24 @@ function DashboardScreen({
         onRefreshJobs={onRefreshJobs}
       />
     );
+  } else if (activeSection === 'dashboard') {
+    content = (
+      <div className="dashboard-grid fade-in">
+        <SectionHeader
+          title={copy.dashboard.title}
+          copy={copy.dashboard.subtitle}
+        />
+        <div className="summary-grid">
+          {summaryCards.map((card) => (
+            <article key={card.label} className="surface surface--compact summary-card">
+              <span className="summary-label">{card.label}</span>
+              <span className="summary-value">{card.value}</span>
+              {card.detail ? <span className="summary-detail">{card.detail}</span> : null}
+            </article>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -2243,22 +2223,7 @@ function DashboardScreen({
         mobileNavigation={mobileNavigation}
         mode="app"
       />
-      <section className="surface surface-pad dashboard-grid dashboard-overview-card">
-        <SectionHeader
-          title={copy.dashboard.title}
-          copy={copy.dashboard.subtitle}
-        />
-        <NoticeBanner notice={notice} />
-        <div className="summary-grid">
-          {summaryCards.map((card) => (
-            <article key={card.label} className="surface surface--compact summary-card">
-              <span className="summary-label">{card.label}</span>
-              <span className="summary-value">{card.value}</span>
-              {card.detail ? <span className="summary-detail">{card.detail}</span> : null}
-            </article>
-          ))}
-        </div>
-      </section>
+      <NoticeBanner notice={notice} />
       <div className="section-tabs" role="tablist" aria-label={copy.dashboard.title}>
         {dashboardTabs.map((tab) => (
           <button
@@ -2289,7 +2254,7 @@ function App() {
     booting: true,
   });
   const [workspace, setWorkspace] = useState(createEmptyWorkspace());
-  const [activeSection, setActiveSection] = useState('recipes');
+  const [activeSection, setActiveSection] = useState('dashboard');
   const [authMode, setAuthMode] = useState('login');
   const [authForm, setAuthForm] = useState(createEmptyAuthForm());
   const [authMessage, setAuthMessage] = useState({ type: '', text: '' });

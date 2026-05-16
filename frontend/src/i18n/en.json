@@ -111,6 +111,7 @@
     "subtitle": "Keep recipes, products, the week menu, and the grocery list close at hand.",
     "welcome": "Hello, {username}",
     "tabs": {
+      "dashboard": "Dashboard",
       "recipes": "Recipes",
       "products": "Products",
       "jobs": "Import tasks",
