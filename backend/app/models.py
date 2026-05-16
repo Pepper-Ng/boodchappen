@@ -73,3 +73,22 @@ class ImportJob(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+
+
+class ShoppingList(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    owner_id: int = Field(foreign_key="user.id", index=True)
+    name: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ShoppingListItem(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    shopping_list_id: int = Field(foreign_key="shoppinglist.id", index=True)
+    product_id: int = Field(foreign_key="product.id", index=True)
+    quantity: float = 0.0
+    unit: str = "stuk"
+    source_recipes: str = ""
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)

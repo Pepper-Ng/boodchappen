@@ -215,3 +215,50 @@ export function loadShoppingList(token) {
 export function loadShoppingListExport(token) {
   return request('/shopping-list/export', { token });
 }
+
+export function autoMatchRecipe(token, recipeId) {
+  return request(`/recipes/${recipeId}/auto-match`, {
+    token,
+    method: 'POST',
+  });
+}
+
+export function matchRecipeIngredient(token, recipeId, ingredientId, payload) {
+  return request(`/recipes/${recipeId}/ingredients/${ingredientId}/match`, {
+    token,
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export function listGroceryLists(token) {
+  return request('/grocery-lists', { token });
+}
+
+export function createGroceryList(token, name) {
+  return request('/grocery-lists', {
+    token,
+    method: 'POST',
+    body: { name },
+  });
+}
+
+export function getGroceryList(token, listId) {
+  return request(`/grocery-lists/${listId}`, { token });
+}
+
+export function buildGroceryList(token, listId, payload) {
+  return request(`/grocery-lists/${listId}/build`, {
+    token,
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export function updateGroceryListItem(token, listId, itemId, payload) {
+  return request(`/grocery-lists/${listId}/items/${itemId}`, {
+    token,
+    method: 'PATCH',
+    body: payload,
+  });
+}

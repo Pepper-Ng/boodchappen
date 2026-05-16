@@ -69,11 +69,15 @@ class RecipeImportIn(BaseModel):
 
 
 class RecipeIngredientOut(BaseModel):
+    id: int
     name: str
     normalized_name: str
     quantity: float
     unit: str
     raw_text: str
+    product_id: Optional[int]
+    product_title: Optional[str]
+    product_url: Optional[str]
 
 
 class RecipeOut(BaseModel):
@@ -86,7 +90,24 @@ class RecipeOut(BaseModel):
     instructions: str
     base_persons: int
     ingredients: list[RecipeIngredientOut]
+    matched_ingredients: int
+    total_ingredients: int
+    is_fully_matched: bool
     created_at: datetime
+
+
+class RecipeIngredientMatchIn(BaseModel):
+    product_id: Optional[int] = None
+    ah_url: Optional[str] = None
+
+    @field_validator("ah_url")
+    @classmethod
+    def validate_optional_ah_url(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if not value.strip():
+            return None
+        return validate_albert_heijn_url(value)
 
 
 class ImportJobOut(BaseModel):
@@ -137,6 +158,45 @@ class ShoppingListItemOut(BaseModel):
 class ShoppingListOut(BaseModel):
     items: list[ShoppingListItemOut]
     export_lines: list[str]
+
+
+class GroceryListCreateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+
+class GroceryListBuildIn(BaseModel):
+    include_weekplan: bool = True
+    recipe_ids: list[int] = Field(default_factory=list)
+
+
+class GroceryListItemUpdateIn(BaseModel):
+    quantity: Optional[float] = Field(default=None, ge=0)
+    remove: bool = False
+
+
+class GroceryListItemOut(BaseModel):
+    id: int
+    product_id: int
+    product_title: str
+    product_url: str
+    quantity: float
+    unit: str
+    recipe_names: list[str]
+
+
+class GroceryListSummaryOut(BaseModel):
+    id: int
+    name: str
+    item_count: int
+    updated_at: datetime
+
+
+class GroceryListOut(BaseModel):
+    id: int
+    name: str
+    items: list[GroceryListItemOut]
+    created_at: datetime
+    updated_at: datetime
 
 
 class HealthOut(BaseModel):

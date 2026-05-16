@@ -160,6 +160,7 @@
       "emptyTitle": "Nog geen recepten geïmporteerd",
       "emptyText": "Plak hierboven een Allerhande-URL om het eerste recept toe te voegen.",
       "ingredientsLabel": "ingrediënten",
+      "matchLabel": "gematcht",
       "basePersonsLabel": "personen",
       "sourceLabel": "Bron",
       "openSource": "Bron openen",
@@ -181,7 +182,20 @@
         "running": "Verwerken",
         "succeeded": "Geïmporteerd",
         "failed": "Mislukt"
-      }
+      },
+      "autoMatchButton": "Ingrediënten automatisch matchen",
+      "autoMatchDone": "Automatisch matchen voltooid.",
+      "autoMatchFailed": "Automatisch matchen mislukt.",
+      "matchButton": "Match opslaan",
+      "matchPickRequired": "Kies een bestaand product of plak een AH-product-URL.",
+      "matchSaved": "Ingrediënt succesvol gematcht.",
+      "matchSaveFailed": "Kon de ingrediënt-match niet opslaan.",
+      "matchSelectExisting": "Kies een bestaand product",
+      "matchUrlPlaceholder": "of plak een AH-product-URL om te importeren en matchen",
+      "matchedLabel": "Gematcht",
+      "unmatchedLabel": "Niet gematcht",
+      "matchRequiredTitle": "Alleen volledig gematchte recepten zijn planbaar",
+      "matchRequired": "Match elk ingrediënt met een AH-product voordat je dit recept toevoegt aan weekmenu of boodschappenlijst."
     },
     "products": {
       "title": "Producten",
@@ -228,12 +242,12 @@
     "shopping": {
       "title": "Boodschappenlijst / winkelmandje",
       "description": "Genereer een exportklare boodschappenlijst uit je weekplanning en zie welke items al matchen met geïmporteerde producten.",
-      "generateButton": "Boodschappenlijst genereren",
+      "generateButton": "Lijst opbouwen uit selectie",
       "copyButton": "Exporttekst kopiëren",
       "refreshButton": "Lijst vernieuwen",
-      "exportTitle": "Exportregels",
-      "exportCopy": "Deze regels zijn klaar om te plakken in een mandje, notitie of shopping-app.",
-      "itemsTitle": "Geaggregeerde boodschappen",
+      "exportTitle": "Export",
+      "exportCopy": "Gebruik één exportactie zodra producten en aantallen definitief zijn.",
+      "itemsTitle": "Benoemde boodschappenlijst",
       "emptyTitle": "Nog geen boodschappen om te exporteren",
       "emptyText": "Maak eerst een weekplanning en genereer daarna de lijst op basis van de huidige recepten.",
       "matchedLabel": "Gematcht product",
@@ -241,7 +255,15 @@
       "productLabel": "Geïmporteerd product",
       "exportReady": "Exportklare lijst",
       "exportHint": "Ingrediënthoeveelheden uit je weekplanning worden gecombineerd en waar mogelijk gekoppeld.",
-      "cartLabel": "Intentie voor winkelmandje"
+      "cartLabel": "Intentie voor winkelmandje",
+      "exportJsonButton": "JSON exporteren",
+      "listNameLabel": "Naam nieuwe lijst",
+      "listNamePlaceholder": "Bijv: Week 21 gezinslijst",
+      "createListButton": "Lijst maken",
+      "selectListLabel": "Actieve lijst",
+      "includeWeekPlanLabel": "Huidig weekmenu meenemen",
+      "exportSingleHintTitle": "Eén exportactie",
+      "exportSingleHintText": "Bouw en controleer eerst je lijst, exporteer daarna één keer als JSON."
     }
   },
   "tutorial": {

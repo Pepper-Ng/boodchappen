@@ -97,6 +97,10 @@
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
+.recipe-library-section .section-head {
+  margin-bottom: 0.6rem;
+}
+
 .recipe-card,
 .product-card,
 .job-card,
@@ -472,15 +476,53 @@
 }
 
 .recipe-detail-ingredient {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  display: grid;
   gap: 0.6rem;
   padding: 0.6rem 0.7rem;
   border-radius: 0.8rem;
   background: var(--surface-tint);
   color: var(--muted);
   min-width: 0;
+}
+
+.ingredient-match-main {
+  display: grid;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+.ingredient-product-name {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.ingredient-match-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.45rem;
+}
+
+.shopping-composer {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.shopping-recipe-picks {
+  display: grid;
+  gap: 0.42rem;
+  max-height: 15rem;
+  overflow-y: auto;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text-strong);
+}
+
+.shopping-qty-control {
+  max-width: 7.5rem;
 }
 
 .recipe-detail-ingredient strong,
@@ -693,6 +735,20 @@
     padding: 0.82rem;
   }
 
+  .recipe-card,
+  .product-card {
+    grid-template-columns: 88px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .recipe-cover,
+  .product-cover {
+    width: 88px;
+    max-width: 88px;
+    min-height: 88px;
+    aspect-ratio: 1 / 1;
+  }
+
   .job-meta,
   .recipe-meta,
   .product-meta,
@@ -851,9 +907,7 @@
   }
 
   .recipe-detail-ingredient {
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-start;
+    align-items: stretch;
     gap: 0.3rem;
   }
 }

@@ -5,18 +5,24 @@ import nl from './i18n/nl.json';
 import {
   ApiError,
   addWeekPlan,
+  autoMatchRecipe,
+  buildGroceryList,
+  createGroceryList,
   createRecipeImportJob,
   deleteWeekPlan,
+  getGroceryList,
   importProduct,
+  listGroceryLists,
   listImportJobs,
   listProducts,
   listRecipes,
   listWeekPlan,
   loadCurrentUser,
   loadShoppingList,
-  loadShoppingListExport,
   loginAccount,
+  matchRecipeIngredient,
   registerAccount,
+  updateGroceryListItem,
   waitForRecipeImportJob,
 } from './services/api.js';
 
@@ -78,6 +84,8 @@ function createEmptyWorkspace() {
     products: [],
     weekPlan: [],
     shoppingList: { items: [], export_lines: [] },
+    groceryLists: [],
+    activeGroceryList: null,
     jobs: [],
   };
 }
@@ -982,7 +990,17 @@ function LandingScreen({
   );
 }
 
-function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, returnFocusRef }) {
+function RecipeDetailDialog({
+  copy,
+  recipe,
+  locale,
+  products,
+  onClose,
+  onAddToWeek,
+  onAutoMatchRecipe,
+  onMatchIngredient,
+  returnFocusRef,
+}) {
   const dialogRef = useRef(null);
   const titleRef = useRef(null);
   const [planDraft, setPlanDraft] = useState(() => createRecipeDetailDraft(recipe));
@@ -991,6 +1009,9 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [showAllIngredients, setShowAllIngredients] = useState(false);
   const [showAllInstructions, setShowAllInstructions] = useState(false);
+  const [matchingBusy, setMatchingBusy] = useState(false);
+  const [matchingNotice, setMatchingNotice] = useState({ type: '', text: '' });
+  const [matchDrafts, setMatchDrafts] = useState({});
   const titleId = `recipe-detail-title-${recipe.id}`;
   const leadId = `recipe-detail-lead-${recipe.id}`;
   const descriptionRegionId = `recipe-detail-description-${recipe.id}`;
@@ -1017,6 +1038,9 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
     setShowFullDescription(false);
     setShowAllIngredients(false);
     setShowAllInstructions(false);
+    setMatchingBusy(false);
+    setMatchingNotice({ type: '', text: '' });
+    setMatchDrafts({});
   }, [recipe.id, recipe.base_persons]);
 
   useEffect(() => {
@@ -1078,6 +1102,15 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
   async function handlePlanSubmit(event) {
     event.preventDefault();
     const nextPersons = Math.max(1, Number(planDraft.persons) || 1);
+
+    if (!recipe.is_fully_matched) {
+      setPlanningNotice({
+        type: 'danger',
+        text: copy.dashboard.recipes.matchRequired,
+      });
+      return;
+    }
+
     setPlanningBusy(true);
     setPlanningNotice({ type: '', text: '' });
 
@@ -1105,6 +1138,60 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
       });
     } finally {
       setPlanningBusy(false);
+    }
+  }
+
+  function updateMatchDraft(ingredientId, field, value) {
+    setMatchDrafts((current) => ({
+      ...current,
+      [ingredientId]: {
+        productId: current[ingredientId]?.productId || '',
+        ahUrl: current[ingredientId]?.ahUrl || '',
+        [field]: value,
+      },
+    }));
+  }
+
+  async function handleAutoMatch() {
+    setMatchingBusy(true);
+    setMatchingNotice({ type: '', text: '' });
+
+    try {
+      await onAutoMatchRecipe(recipe.id);
+      setMatchingNotice({ type: 'success', text: copy.dashboard.recipes.autoMatchDone });
+    } catch (error) {
+      setMatchingNotice({ type: 'danger', text: error.message || copy.dashboard.recipes.autoMatchFailed });
+    } finally {
+      setMatchingBusy(false);
+    }
+  }
+
+  async function handleManualMatch(ingredient) {
+    const draft = matchDrafts[ingredient.id] || { productId: '', ahUrl: '' };
+    const payload = {};
+    if (draft.productId) {
+      payload.product_id = Number(draft.productId);
+    } else if (draft.ahUrl?.trim()) {
+      payload.ah_url = draft.ahUrl.trim();
+    } else {
+      setMatchingNotice({ type: 'warning', text: copy.dashboard.recipes.matchPickRequired });
+      return;
+    }
+
+    setMatchingBusy(true);
+    setMatchingNotice({ type: '', text: '' });
+
+    try {
+      await onMatchIngredient(recipe.id, ingredient.id, payload);
+      setMatchingNotice({ type: 'success', text: copy.dashboard.recipes.matchSaved });
+      setMatchDrafts((current) => ({
+        ...current,
+        [ingredient.id]: { productId: '', ahUrl: '' },
+      }));
+    } catch (error) {
+      setMatchingNotice({ type: 'danger', text: error.message || copy.dashboard.recipes.matchSaveFailed });
+    } finally {
+      setMatchingBusy(false);
     }
   }
 
@@ -1201,6 +1288,7 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
                     {planningBusy ? copy.common.loading : copy.dashboard.week.button}
                   </button>
                 </form>
+                {!recipe.is_fully_matched ? <div className="alert alert--warning">{copy.dashboard.recipes.matchRequired}</div> : null}
               </section>
             </aside>
 
@@ -1237,14 +1325,61 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
                 <section className="detail-card">
                   <div className="panel-heading">
                     <h3 className="panel-title">{copy.dashboard.recipes.ingredientsTitle}</h3>
+                    <button
+                      type="button"
+                      className="button button--secondary detail-toggle"
+                      onClick={handleAutoMatch}
+                      disabled={matchingBusy}
+                    >
+                      {matchingBusy ? copy.common.loading : copy.dashboard.recipes.autoMatchButton}
+                    </button>
                   </div>
+                  <NoticeBanner notice={matchingNotice} />
                   <div id={ingredientsRegionId} className="recipe-detail-ingredients">
                     {visibleIngredients.map((ingredient, index) => (
                       <div key={`${recipe.id}-ingredient-${index + 1}`} className="recipe-detail-ingredient">
-                        <strong>{ingredient.raw_text}</strong>
-                        <span>
-                          {formatQuantity(ingredient.quantity, locale)} {ingredient.unit}
-                        </span>
+                        <div className="ingredient-match-main">
+                          <strong>{ingredient.raw_text}</strong>
+                          <span>
+                            {formatQuantity(ingredient.quantity, locale)} {ingredient.unit}
+                          </span>
+                          <span className={`chip ${ingredient.product_id ? 'chip--success' : 'chip--warning'}`}>
+                            {ingredient.product_id ? copy.dashboard.recipes.matchedLabel : copy.dashboard.recipes.unmatchedLabel}
+                          </span>
+                          {ingredient.product_title ? <span className="ingredient-product-name">{ingredient.product_title}</span> : null}
+                        </div>
+                        {!ingredient.product_id ? (
+                          <div className="ingredient-match-controls">
+                            <select
+                              className="select"
+                              value={matchDrafts[ingredient.id]?.productId || ''}
+                              onChange={(event) => updateMatchDraft(ingredient.id, 'productId', event.target.value)}
+                            >
+                              <option value="">{copy.dashboard.recipes.matchSelectExisting}</option>
+                              {products.map((product) => (
+                                <option key={product.id} value={String(product.id)}>
+                                  {product.title}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              className="control"
+                              type="url"
+                              inputMode="url"
+                              placeholder={copy.dashboard.recipes.matchUrlPlaceholder}
+                              value={matchDrafts[ingredient.id]?.ahUrl || ''}
+                              onChange={(event) => updateMatchDraft(ingredient.id, 'ahUrl', event.target.value)}
+                            />
+                            <button
+                              type="button"
+                              className="button button--secondary"
+                              onClick={() => handleManualMatch(ingredient)}
+                              disabled={matchingBusy}
+                            >
+                              {copy.dashboard.recipes.matchButton}
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -1318,6 +1453,9 @@ function RecipeCard({ copy, recipe, locale, onOpenDetails }) {
               {recipe.ingredients.length} {copy.dashboard.recipes.ingredientsLabel}
             </span>
             <span className="chip">{recipe.base_persons} {copy.dashboard.recipes.basePersonsLabel}</span>
+            <span className={`chip ${recipe.is_fully_matched ? 'chip--success' : 'chip--warning'}`}>
+              {recipe.matched_ingredients}/{recipe.total_ingredients} {copy.dashboard.recipes.matchLabel}
+            </span>
           </div>
           <h3 className="recipe-title">{recipe.name}</h3>
           {description ? <p className="recipe-copy">{description}</p> : null}
@@ -1470,6 +1608,8 @@ function RecipesSection({
   recipeImportState,
   onImportRecipe,
   onAddRecipeToWeek,
+  onAutoMatchRecipe,
+  onMatchIngredient,
 }) {
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const detailTriggerRef = useRef(null);
@@ -1539,7 +1679,7 @@ function RecipesSection({
           }
         />
       </section>
-      <section className="surface surface--compact surface-pad">
+      <section className="surface surface--compact surface-pad recipe-library-section">
         <SectionHeader title={copy.dashboard.recipes.listTitle} />
         {workspace.recipes.length ? (
           <div className="recipe-grid">
@@ -1565,8 +1705,11 @@ function RecipesSection({
           copy={copy}
           recipe={selectedRecipe}
           locale={locale}
+          products={workspace.products}
           onClose={() => setSelectedRecipeId(null)}
           onAddToWeek={onAddRecipeToWeek}
+          onAutoMatchRecipe={onAutoMatchRecipe}
+          onMatchIngredient={onMatchIngredient}
           returnFocusRef={detailTriggerRef}
         />
       ) : null}
@@ -1708,6 +1851,7 @@ function WeekSection({
   onAddWeekPlan,
   onRemoveWeekPlan,
 }) {
+  const matchedRecipes = workspace.recipes.filter((recipe) => recipe.is_fully_matched);
   const groupedEntries = dayOrder.map((day) => ({
     day,
     entries: workspace.weekPlan.filter((entry) => entry.day === day),
@@ -1732,11 +1876,11 @@ function WeekSection({
                 className="select"
                 value={weekDraft.recipeId}
                 onChange={(event) => onWeekDraftChange('recipeId', event.target.value)}
-                disabled={!workspace.recipes.length}
+                disabled={!matchedRecipes.length}
                 required
               >
-                {workspace.recipes.length ? (
-                  workspace.recipes.map((recipe) => (
+                {matchedRecipes.length ? (
+                  matchedRecipes.map((recipe) => (
                     <option key={recipe.id} value={String(recipe.id)}>
                       {recipe.name}
                     </option>
@@ -1776,10 +1920,10 @@ function WeekSection({
               {copy.dashboard.week.button}
             </button>
           </form>
-          {!workspace.recipes.length ? (
+          {!matchedRecipes.length ? (
             <div className="empty-state">
-              <p className="empty-title">{copy.dashboard.week.emptyTitle}</p>
-              <p className="empty-copy">{copy.dashboard.week.emptyText}</p>
+              <p className="empty-title">{copy.dashboard.recipes.matchRequiredTitle}</p>
+              <p className="empty-copy">{copy.dashboard.recipes.matchRequired}</p>
             </div>
           ) : null}
         </section>
@@ -1837,12 +1981,68 @@ function ShoppingSection({
   workspace,
   locale,
   shoppingState,
-  onGenerateShopping,
-  onCopyShopping,
-  onRefreshShopping,
+  onCreateList,
+  onSelectList,
+  onBuildList,
+  onUpdateListItem,
 }) {
-  const exportLines = workspace.shoppingList.export_lines || [];
-  const items = workspace.shoppingList.items || [];
+  const items = workspace.activeGroceryList?.items || [];
+  const lists = workspace.groceryLists || [];
+  const [listName, setListName] = useState('');
+  const [includeWeekPlan, setIncludeWeekPlan] = useState(true);
+  const [selectedRecipeIds, setSelectedRecipeIds] = useState([]);
+  const matchedRecipes = workspace.recipes.filter((recipe) => recipe.is_fully_matched);
+
+  function toggleRecipe(recipeId) {
+    setSelectedRecipeIds((current) => (
+      current.includes(recipeId)
+        ? current.filter((id) => id !== recipeId)
+        : [...current, recipeId]
+    ));
+  }
+
+  async function handleCreateList(event) {
+    event.preventDefault();
+    const nextName = listName.trim();
+    if (!nextName) {
+      return;
+    }
+    await onCreateList(nextName);
+    setListName('');
+  }
+
+  async function handleBuildList() {
+    if (!workspace.activeGroceryList) {
+      return;
+    }
+
+    await onBuildList(workspace.activeGroceryList.id, {
+      include_weekplan: includeWeekPlan,
+      recipe_ids: selectedRecipeIds,
+    });
+  }
+
+  function handleExportJson() {
+    if (!workspace.activeGroceryList) {
+      return;
+    }
+
+    const payload = {
+      list: workspace.activeGroceryList.name,
+      generated_at: new Date().toISOString(),
+      items: workspace.activeGroceryList.items,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${workspace.activeGroceryList.name.replace(/\s+/g, '-').toLowerCase() || 'grocery-list'}.json`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="dashboard-grid fade-in">
@@ -1851,19 +2051,16 @@ function ShoppingSection({
         copy={copy.dashboard.shopping.description}
         actions={(
           <>
-            <button type="button" className="button button--primary" onClick={onGenerateShopping}>
+            <button type="button" className="button button--primary" onClick={handleBuildList} disabled={!workspace.activeGroceryList}>
               {copy.dashboard.shopping.generateButton}
             </button>
             <button
               type="button"
               className="button button--secondary"
-              onClick={onCopyShopping}
-              disabled={!exportLines.length}
+              onClick={handleExportJson}
+              disabled={!workspace.activeGroceryList || !workspace.activeGroceryList.items.length}
             >
-              {copy.dashboard.shopping.copyButton}
-            </button>
-            <button type="button" className="button button--secondary" onClick={onRefreshShopping}>
-              {copy.dashboard.shopping.refreshButton}
+              {copy.dashboard.shopping.exportJsonButton}
             </button>
           </>
         )}
@@ -1871,10 +2068,97 @@ function ShoppingSection({
       <div className="shopping-layout">
         <section className="surface surface--compact surface-pad shopping-card">
           <SectionHeader title={copy.dashboard.shopping.itemsTitle} copy={copy.dashboard.shopping.exportHint} />
+          <form className="form-grid" onSubmit={handleCreateList}>
+            <Field id="shopping-list-name" label={copy.dashboard.shopping.listNameLabel}>
+              <input
+                id="shopping-list-name"
+                className="control"
+                value={listName}
+                onChange={(event) => setListName(event.target.value)}
+                placeholder={copy.dashboard.shopping.listNamePlaceholder}
+              />
+            </Field>
+            <button type="submit" className="button button--secondary button--block">
+              {copy.dashboard.shopping.createListButton}
+            </button>
+          </form>
+
+          {lists.length ? (
+            <Field id="shopping-list-select" label={copy.dashboard.shopping.selectListLabel}>
+              <select
+                id="shopping-list-select"
+                className="select"
+                value={String(workspace.activeGroceryList?.id || '')}
+                onChange={(event) => onSelectList(Number(event.target.value))}
+              >
+                {lists.map((list) => (
+                  <option key={list.id} value={String(list.id)}>
+                    {list.name} ({list.item_count})
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
+
+          <div className="shopping-composer surface surface--compact surface-pad">
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={includeWeekPlan}
+                onChange={(event) => setIncludeWeekPlan(event.target.checked)}
+              />
+              <span>{copy.dashboard.shopping.includeWeekPlanLabel}</span>
+            </label>
+            <div className="shopping-recipe-picks">
+              {matchedRecipes.map((recipe) => (
+                <label key={recipe.id} className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={selectedRecipeIds.includes(recipe.id)}
+                    onChange={() => toggleRecipe(recipe.id)}
+                  />
+                  <span>{recipe.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           {items.length ? (
             <div className="shopping-list">
               {items.map((item) => (
-                <ShoppingRow key={`${item.normalized_name}-${item.name}`} copy={copy} item={item} locale={locale} />
+                <article key={item.id} className="shopping-row">
+                  <div className="shopping-details">
+                    <div className="shopping-meta">
+                      <h3 className="shopping-title">{item.product_title}</h3>
+                      <span className="shopping-match shopping-match--good">{item.unit}</span>
+                    </div>
+                    <p className="shopping-copy">{item.recipe_names.join(', ')}</p>
+                    <div className="inline-actions">
+                      <input
+                        className="control shopping-qty-control"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={item.quantity}
+                        onChange={(event) => onUpdateListItem(workspace.activeGroceryList.id, item.id, {
+                          quantity: Number(event.target.value),
+                        })}
+                      />
+                      <button
+                        type="button"
+                        className="button button--secondary"
+                        onClick={() => onUpdateListItem(workspace.activeGroceryList.id, item.id, { remove: true })}
+                      >
+                        {copy.dashboard.week.removeLabel}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="link-row">
+                    <a className="link-button" href={item.product_url} target="_blank" rel="noreferrer">
+                      {copy.dashboard.products.openSource}
+                    </a>
+                  </div>
+                </article>
               ))}
             </div>
           ) : (
@@ -1892,22 +2176,12 @@ function ShoppingSection({
             loadingCopy={copy.dashboard.shopping.exportHint}
             successTitle={copy.dashboard.shopping.exportReady}
             errorTitle={copy.dashboard.shopping.exportTitle}
-            meta={exportLines.length ? <span className="chip chip--accent">{exportLines.length} lines</span> : null}
+            meta={workspace.activeGroceryList ? <span className="chip chip--accent">{workspace.activeGroceryList.name}</span> : null}
           />
-          {exportLines.length ? (
-            <div className="export-lines">
-              {exportLines.map((line) => (
-                <div key={line} className="export-line">
-                  {line}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <p className="empty-title">{copy.dashboard.shopping.emptyTitle}</p>
-              <p className="empty-copy">{copy.dashboard.shopping.emptyText}</p>
-            </div>
-          )}
+          <div className="empty-state">
+            <p className="empty-title">{copy.dashboard.shopping.exportSingleHintTitle}</p>
+            <p className="empty-copy">{copy.dashboard.shopping.exportSingleHintText}</p>
+          </div>
         </section>
       </div>
     </div>
@@ -2073,6 +2347,8 @@ function DashboardScreen({
   recipeImportState,
   onImportRecipe,
   onAddRecipeToWeek,
+  onAutoMatchRecipe,
+  onMatchIngredient,
   productUrl,
   onProductUrlChange,
   productImportState,
@@ -2082,9 +2358,10 @@ function DashboardScreen({
   onAddWeekPlan,
   onRemoveWeekPlan,
   shoppingState,
-  onGenerateShopping,
-  onCopyShopping,
-  onRefreshShopping,
+  onCreateShoppingList,
+  onSelectShoppingList,
+  onBuildShoppingList,
+  onUpdateShoppingListItem,
   onRefreshJobs,
   notice,
 }) {
@@ -2142,6 +2419,8 @@ function DashboardScreen({
         recipeImportState={recipeImportState}
         onImportRecipe={onImportRecipe}
         onAddRecipeToWeek={onAddRecipeToWeek}
+        onAutoMatchRecipe={onAutoMatchRecipe}
+        onMatchIngredient={onMatchIngredient}
       />
     );
   } else if (activeSection === 'products') {
@@ -2175,9 +2454,10 @@ function DashboardScreen({
         workspace={workspace}
         locale={lang === 'nl' ? 'nl-NL' : 'en-GB'}
         shoppingState={shoppingState}
-        onGenerateShopping={onGenerateShopping}
-        onCopyShopping={onCopyShopping}
-        onRefreshShopping={onRefreshShopping}
+        onCreateList={onCreateShoppingList}
+        onSelectList={onSelectShoppingList}
+        onBuildList={onBuildShoppingList}
+        onUpdateListItem={onUpdateShoppingListItem}
       />
     );
   } else if (activeSection === 'jobs') {
@@ -2322,22 +2602,28 @@ function App() {
   }, [copy, tutorialChapterId]);
 
   async function loadWorkspace(token) {
-    const [recipes, products, weekPlan, shoppingList, jobs] = await Promise.all([
+    const [recipes, products, weekPlan, shoppingList, jobs, groceryLists] = await Promise.all([
       listRecipes(token),
       listProducts(token),
       listWeekPlan(token),
       loadShoppingList(token),
       listImportJobs(token),
+      listGroceryLists(token),
     ]);
+
+    let activeGroceryList = null;
+    if (groceryLists.length) {
+      activeGroceryList = await getGroceryList(token, groceryLists[0].id);
+    }
 
     if (!mountedRef.current) {
       return false;
     }
 
-    setWorkspace({ recipes, products, weekPlan, shoppingList, jobs });
+    setWorkspace({ recipes, products, weekPlan, shoppingList, jobs, groceryLists, activeGroceryList });
     setWeekDraft((current) => ({
       ...current,
-      recipeId: current.recipeId || (recipes[0] ? String(recipes[0].id) : ''),
+      recipeId: current.recipeId || (recipes.find((recipe) => recipe.is_fully_matched) ? String(recipes.find((recipe) => recipe.is_fully_matched).id) : ''),
     }));
     setDashboardNotice({ type: '', text: '' });
     return true;
@@ -2371,7 +2657,7 @@ function App() {
     });
     setWorkspace(createEmptyWorkspace());
     setView('landing');
-    setActiveSection('recipes');
+    setActiveSection('dashboard');
     setAuthMode('login');
     setAuthBusy(false);
     setAuthForm(createEmptyAuthForm());
@@ -2440,7 +2726,7 @@ function App() {
     });
     setWorkspace(createEmptyWorkspace());
     setView('dashboard');
-    setActiveSection('recipes');
+    setActiveSection('dashboard');
     setAuthMessage({ type: '', text: '' });
     setDashboardNotice({ type: '', text: '' });
     setRecipeUrl('');
@@ -2655,64 +2941,62 @@ function App() {
     }
   }
 
-  async function onGenerateShopping() {
-    setShoppingState({
-      status: 'running',
-      text: copy.common.loading,
-    });
-
-    try {
-      const shoppingList = await loadShoppingListExport(session.token);
-      if (!mountedRef.current) {
-        return;
-      }
-
-      setWorkspace((current) => ({
-        ...current,
-        shoppingList,
-      }));
-      setShoppingState({
-        status: 'succeeded',
-        text: copy.dashboard.shopping.exportReady,
-      });
-    } catch (error) {
-      if (!mountedRef.current) {
-        return;
-      }
-
-      setShoppingState({
-        status: 'failed',
-        text: error.message || copy.dashboard.shopping.generateButton,
-      });
-      setDashboardNotice({
-        type: 'danger',
-        text: error.message || copy.dashboard.shopping.generateButton,
-      });
-    }
-  }
-
-  async function onCopyShopping() {
-    const exportText = (workspace.shoppingList.export_lines || []).join('\n');
-    if (!exportText) {
-      return;
-    }
-
-    try {
-      if (window.navigator.clipboard?.writeText) {
-        await window.navigator.clipboard.writeText(exportText);
-      } else {
-        window.prompt(copy.dashboard.shopping.exportTitle, exportText);
-      }
-    } catch (error) {
-      setDashboardNotice({
-        type: 'danger',
-        text: error.message || copy.dashboard.shopping.copyButton,
-      });
-    }
-  }
-
-  async function onRefreshShopping() {
+  async function onAutoMatchRecipe(recipeId) {
+    await autoMatchRecipe(session.token, recipeId);
     await refreshWorkspace(session.token);
+  }
+
+  async function onMatchIngredient(recipeId, ingredientId, payload) {
+    await matchRecipeIngredient(session.token, recipeId, ingredientId, payload);
+    await refreshWorkspace(session.token);
+  }
+
+  async function onCreateShoppingList(name) {
+    setShoppingState({ status: 'running', text: copy.common.loading });
+    try {
+      const created = await createGroceryList(session.token, name);
+      const [groceryLists, activeGroceryList] = await Promise.all([
+        listGroceryLists(session.token),
+        getGroceryList(session.token, created.id),
+      ]);
+      setWorkspace((current) => ({ ...current, groceryLists, activeGroceryList }));
+      setShoppingState({ status: 'succeeded', text: copy.dashboard.shopping.createListButton });
+    } catch (error) {
+      setShoppingState({ status: 'failed', text: error.message || copy.dashboard.shopping.createListButton });
+      setDashboardNotice({ type: 'danger', text: error.message || copy.dashboard.shopping.createListButton });
+    }
+  }
+
+  async function onSelectShoppingList(listId) {
+    try {
+      const activeGroceryList = await getGroceryList(session.token, listId);
+      setWorkspace((current) => ({ ...current, activeGroceryList }));
+    } catch (error) {
+      setDashboardNotice({ type: 'danger', text: error.message || copy.dashboard.shopping.selectListLabel });
+    }
+  }
+
+  async function onBuildShoppingList(listId, payload) {
+    setShoppingState({ status: 'running', text: copy.common.loading });
+    try {
+      const activeGroceryList = await buildGroceryList(session.token, listId, payload);
+      const groceryLists = await listGroceryLists(session.token);
+      setWorkspace((current) => ({ ...current, groceryLists, activeGroceryList }));
+      setShoppingState({ status: 'succeeded', text: copy.dashboard.shopping.exportReady });
+    } catch (error) {
+      setShoppingState({ status: 'failed', text: error.message || copy.dashboard.shopping.generateButton });
+      setDashboardNotice({ type: 'danger', text: error.message || copy.dashboard.shopping.generateButton });
+    }
+  }
+
+  async function onUpdateShoppingListItem(listId, itemId, payload) {
+    try {
+      const activeGroceryList = await updateGroceryListItem(session.token, listId, itemId, payload);
+      const groceryLists = await listGroceryLists(session.token);
+      setWorkspace((current) => ({ ...current, groceryLists, activeGroceryList }));
+    } catch (error) {
+      setDashboardNotice({ type: 'danger', text: error.message || copy.dashboard.shopping.refreshButton });
+    }
   }
 
   async function saveWeekPlanEntry(recipeId, day, persons) {
@@ -2858,6 +3142,8 @@ function App() {
         recipeImportState={recipeImportState}
         onImportRecipe={onImportRecipe}
         onAddRecipeToWeek={onAddRecipeToWeek}
+        onAutoMatchRecipe={onAutoMatchRecipe}
+        onMatchIngredient={onMatchIngredient}
         productUrl={productUrl}
         onProductUrlChange={setProductUrl}
         productImportState={productImportState}
@@ -2867,9 +3153,10 @@ function App() {
         onAddWeekPlan={onAddWeekPlan}
         onRemoveWeekPlan={onRemoveWeekPlan}
         shoppingState={shoppingState}
-        onGenerateShopping={onGenerateShopping}
-        onCopyShopping={onCopyShopping}
-        onRefreshShopping={onRefreshShopping}
+        onCreateShoppingList={onCreateShoppingList}
+        onSelectShoppingList={onSelectShoppingList}
+        onBuildShoppingList={onBuildShoppingList}
+        onUpdateShoppingListItem={onUpdateShoppingListItem}
         onRefreshJobs={() => refreshWorkspace(session.token)}
         notice={dashboardNotice}
       />

@@ -160,6 +160,7 @@
       "emptyTitle": "No recipes imported yet",
       "emptyText": "Paste an Allerhande URL above to add the first recipe.",
       "ingredientsLabel": "ingredients",
+      "matchLabel": "matched",
       "basePersonsLabel": "servings",
       "sourceLabel": "Source",
       "openSource": "Open source",
@@ -181,7 +182,20 @@
         "running": "Processing",
         "succeeded": "Imported",
         "failed": "Failed"
-      }
+      },
+      "autoMatchButton": "Auto-match ingredients",
+      "autoMatchDone": "Auto-matching finished.",
+      "autoMatchFailed": "Auto-matching failed.",
+      "matchButton": "Save match",
+      "matchPickRequired": "Pick an existing product or paste an AH product URL.",
+      "matchSaved": "Ingredient matched successfully.",
+      "matchSaveFailed": "Could not save the ingredient match.",
+      "matchSelectExisting": "Select an existing product",
+      "matchUrlPlaceholder": "or paste an AH product URL to import and match",
+      "matchedLabel": "Matched",
+      "unmatchedLabel": "Unmatched",
+      "matchRequiredTitle": "Only fully matched recipes can be planned",
+      "matchRequired": "Match every ingredient to an AH product before adding this recipe to a week menu or grocery list."
     },
     "products": {
       "title": "Products",
@@ -228,12 +242,12 @@
     "shopping": {
       "title": "Grocery list / shopping cart",
       "description": "Generate an export-ready grocery list from your week plan and see which items match imported products.",
-      "generateButton": "Generate grocery list",
+      "generateButton": "Build list from selection",
       "copyButton": "Copy export text",
       "refreshButton": "Refresh list",
-      "exportTitle": "Export lines",
-      "exportCopy": "These lines are ready to paste into a cart, note, or shopping app.",
-      "itemsTitle": "Aggregated groceries",
+      "exportTitle": "Export",
+      "exportCopy": "Use one export action after your products are matched and quantities are final.",
+      "itemsTitle": "Named grocery list",
       "emptyTitle": "No groceries to export yet",
       "emptyText": "Build a week plan first, then generate the list from the current recipes.",
       "matchedLabel": "Matched product",
@@ -241,7 +255,15 @@
       "productLabel": "Imported product",
       "exportReady": "Export-ready list",
       "exportHint": "Ingredient quantities from your week plan are combined and matched where possible.",
-      "cartLabel": "Shopping cart intent"
+      "cartLabel": "Shopping cart intent",
+      "exportJsonButton": "Export JSON",
+      "listNameLabel": "New list name",
+      "listNamePlaceholder": "Example: Week 21 family list",
+      "createListButton": "Create list",
+      "selectListLabel": "Active list",
+      "includeWeekPlanLabel": "Include current week menu",
+      "exportSingleHintTitle": "Single export action",
+      "exportSingleHintText": "Build and review your list first, then export once as JSON."
     }
   },
   "tutorial": {

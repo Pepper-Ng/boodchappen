@@ -526,6 +526,8 @@ def build_ah_search_url(query: str) -> str:
 
 
 def match_product_to_ingredient(normalized_name: str, products: list[Any]):
+    ingredient_tokens = {token for token in normalized_name.split() if token}
+
     for product in products:
         if getattr(product, "normalized_title", "") == normalized_name:
             return product
@@ -534,5 +536,21 @@ def match_product_to_ingredient(normalized_name: str, products: list[Any]):
         normalized_title = getattr(product, "normalized_title", "")
         if normalized_name in normalized_title or normalized_title in normalized_name:
             return product
+
+    if ingredient_tokens:
+        scored_products: list[tuple[int, Any]] = []
+        for product in products:
+            normalized_title = getattr(product, "normalized_title", "")
+            product_tokens = {token for token in normalized_title.split() if token}
+            if not product_tokens:
+                continue
+
+            overlap = ingredient_tokens & product_tokens
+            if overlap:
+                scored_products.append((len(overlap), product))
+
+        if scored_products:
+            scored_products.sort(key=lambda item: item[0], reverse=True)
+            return scored_products[0][1]
 
     return None
