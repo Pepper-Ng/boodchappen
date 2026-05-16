@@ -16,6 +16,7 @@
   "common": {
     "language": "Language",
     "theme": "Theme",
+    "account": "Account",
     "light": "Light",
     "dark": "Dark",
     "menuOpen": "Open navigation menu",
@@ -112,6 +113,7 @@
     "tabs": {
       "recipes": "Recipes",
       "products": "Products",
+      "jobs": "Import tasks",
       "week": "Week menu",
       "shopping": "Grocery list / cart"
     },
@@ -126,11 +128,22 @@
       "jobsActiveSingle": "1 active: {status}",
       "jobsActiveMultiple": "{count} active: {status}"
     },
+    "jobs": {
+      "title": "Import tasks",
+      "description": "Review queued, running, and finished imports in one place instead of squeezing that state into the dashboard summary.",
+      "refreshButton": "Refresh tasks",
+      "pendingTitle": "Pending import tasks",
+      "pendingEmptyTitle": "No pending import tasks",
+      "pendingEmptyText": "New imports will appear here while they are queued or processing.",
+      "historyTitle": "Completed import tasks",
+      "historyEmptyTitle": "No completed import tasks yet",
+      "historyEmptyText": "Finished and failed imports will appear here once jobs complete."
+    },
     "recipes": {
       "title": "Recipes",
       "description": "Import Allerhande recipes, review them in-app, and keep them ready for planning.",
       "importTitle": "Import recipe",
-      "importCopy": "Paste a URL to import a recipe while recent jobs stay visible next to it.",
+      "importCopy": "Paste a URL to import a recipe, then follow its progress on the Import tasks page.",
       "urlLabel": "Allerhande recipe URL",
       "urlPlaceholder": "https://www.ah.nl/allerhande/recept/...",
       "button": "Import recipe",

@@ -16,6 +16,7 @@
   "common": {
     "language": "Taal",
     "theme": "Thema",
+    "account": "Account",
     "light": "Licht",
     "dark": "Donker",
     "menuOpen": "Navigatiemenu openen",
@@ -112,6 +113,7 @@
     "tabs": {
       "recipes": "Recepten",
       "products": "Producten",
+      "jobs": "Importtaken",
       "week": "Weekmenu",
       "shopping": "Boodschappenlijst / mandje"
     },
@@ -126,11 +128,22 @@
       "jobsActiveSingle": "1 actief: {status}",
       "jobsActiveMultiple": "{count} actief: {status}"
     },
+    "jobs": {
+      "title": "Importtaken",
+      "description": "Bekijk wachtende, lopende en afgeronde imports op één plek in plaats van die status in een dashboardtegel te proppen.",
+      "refreshButton": "Taken verversen",
+      "pendingTitle": "Lopende importtaken",
+      "pendingEmptyTitle": "Geen lopende importtaken",
+      "pendingEmptyText": "Nieuwe imports verschijnen hier zolang ze in de wachtrij staan of worden verwerkt.",
+      "historyTitle": "Afgeronde importtaken",
+      "historyEmptyTitle": "Nog geen afgeronde importtaken",
+      "historyEmptyText": "Voltooide en mislukte imports verschijnen hier zodra taken klaar zijn."
+    },
     "recipes": {
       "title": "Recepten",
       "description": "Importeer Allerhande-recepten, bekijk ze in de app en houd ze klaar voor je planning.",
       "importTitle": "Recept importeren",
-      "importCopy": "Plak een URL om een recept te importeren terwijl recente taken ernaast zichtbaar blijven.",
+      "importCopy": "Plak een URL om een recept te importeren en volg daarna de voortgang op de pagina Importtaken.",
       "urlLabel": "Allerhande-recept-URL",
       "urlPlaceholder": "https://www.ah.nl/allerhande/recept/...",
       "button": "Recept importeren",

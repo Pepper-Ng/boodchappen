@@ -26,7 +26,7 @@ const storageKeys = {
   language: 'boodschappen.language',
   theme: 'boodschappen.theme',
 };
-const dashboardTabs = ['recipes', 'products', 'week', 'shopping'];
+const dashboardTabs = ['recipes', 'products', 'jobs', 'week', 'shopping'];
 const dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 function getStoredValue(key) {
@@ -255,29 +255,6 @@ function sortJobsByCreatedAt(jobs) {
     const rightTime = Date.parse(String(right?.created_at || ''));
 
     return (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime);
-  });
-}
-
-function importJobsSummaryText(copy, jobs) {
-  const sortedJobs = sortJobsByCreatedAt(jobs);
-  if (!sortedJobs.length) {
-    return copy.dashboard.stats.jobsEmpty;
-  }
-
-  const activeJobs = sortedJobs.filter((job) => job.status === 'queued' || job.status === 'running');
-  if (activeJobs.length) {
-    const latestActiveJob = activeJobs[0];
-    return replaceTemplate(
-      activeJobs.length === 1 ? copy.dashboard.stats.jobsActiveSingle : copy.dashboard.stats.jobsActiveMultiple,
-      {
-        count: activeJobs.length,
-        status: recipeJobStatusLabel(copy, latestActiveJob.status),
-      }
-    );
-  }
-
-  return replaceTemplate(copy.dashboard.stats.jobsHistory, {
-    status: recipeJobStatusLabel(copy, sortedJobs[0].status),
   });
 }
 
@@ -586,64 +563,75 @@ function ShellTopBar({
             </span>
           </button>
           <div id="nav-drawer" className={`nav-drawer ${mobileMenuOpen ? 'is-open' : ''}`} aria-hidden={!mobileMenuOpen}>
-            {mobileNavigation ? (
+            <div className="nav-drawer-panel">
+              {mobileNavigation ? (
+                <div className="nav-drawer-section">
+                  <span className="nav-drawer-label">{mobileNavigation.label}</span>
+                  <div className="nav-drawer-actions">
+                    {mobileNavigation.items.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className={`button button--pill nav-drawer-item ${item.active ? 'button--active' : 'button--secondary'}`}
+                        onClick={handleNavigationClick(item)}
+                        aria-pressed={item.active}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="nav-drawer-section">
-                <span className="nav-drawer-label">{mobileNavigation.label}</span>
-                <div className="nav-drawer-actions">
-                  {mobileNavigation.items.map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className={`button button--pill nav-drawer-item ${item.active ? 'button--active' : 'button--secondary'}`}
-                      onClick={handleNavigationClick(item)}
-                      aria-pressed={item.active}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
+                <span className="nav-drawer-label">{copy.common.language}</span>
+                <div className="nav-drawer-row">
+                  <button
+                    type="button"
+                    className={`button button--pill nav-drawer-item ${lang === 'nl' ? 'button--active' : 'button--secondary'}`}
+                    onClick={handleLanguageChange('nl')}
+                    aria-pressed={lang === 'nl'}
+                  >
+                    NL
+                  </button>
+                  <button
+                    type="button"
+                    className={`button button--pill nav-drawer-item ${lang === 'en' ? 'button--active' : 'button--secondary'}`}
+                    onClick={handleLanguageChange('en')}
+                    aria-pressed={lang === 'en'}
+                  >
+                    EN
+                  </button>
                 </div>
               </div>
-            ) : null}
-            <div className="nav-drawer-section">
-              <span className="nav-drawer-label">{copy.common.language}</span>
-              <div className="nav-drawer-row">
+              <div className="nav-drawer-section">
+                <span className="nav-drawer-label">{copy.common.theme}</span>
                 <button
                   type="button"
-                  className={`button button--pill nav-drawer-item ${lang === 'nl' ? 'button--active' : 'button--secondary'}`}
-                  onClick={handleLanguageChange('nl')}
-                  aria-pressed={lang === 'nl'}
+                  className="button button--secondary nav-drawer-item"
+                  onClick={handleThemeClick}
                 >
-                  NL
-                </button>
-                <button
-                  type="button"
-                  className={`button button--pill nav-drawer-item ${lang === 'en' ? 'button--active' : 'button--secondary'}`}
-                  onClick={handleLanguageChange('en')}
-                  aria-pressed={lang === 'en'}
-                >
-                  EN
+                  {themeToggleLabel}
                 </button>
               </div>
-            </div>
-            <div className="nav-drawer-section">
-              <span className="nav-drawer-label">{copy.common.theme}</span>
-              <button type="button" className="button button--secondary nav-drawer-item" onClick={handleThemeClick}>
-                {themeToggleLabel}
-              </button>
-            </div>
-            {userLabel ? <span className="chip chip--accent nav-drawer-chip">{userLabel}</span> : null}
-            <div className="nav-drawer-actions">
-              {actions.map((action) => (
-                <button
-                  key={action.label}
-                  type="button"
-                  className={`button nav-drawer-item ${action.variant === 'primary' ? 'button--primary' : 'button--secondary'}`}
-                  onClick={handleActionClick(action)}
-                  disabled={action.disabled}
-                >
-                  {action.label}
-                </button>
-              ))}
+              {userLabel ? (
+                <div className="nav-drawer-section nav-drawer-section--account">
+                  <span className="nav-drawer-label">{copy.common.account}</span>
+                  <div className="nav-drawer-account">{userLabel}</div>
+                </div>
+              ) : null}
+              <div className="nav-drawer-actions">
+                {actions.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    className={`button nav-drawer-item ${action.variant === 'primary' ? 'button--primary' : 'button--secondary'}`}
+                    onClick={handleActionClick(action)}
+                    disabled={action.disabled}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </>
@@ -1020,6 +1008,7 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
   const recipeLead = descriptionParagraphs[0] || sourceHost || snippet(recipe.instructions, 180);
   const ingredientsToggleLabel = `${showAllIngredients ? copy.common.showLess : copy.common.showMore}...`;
   const instructionsToggleLabel = `${showAllInstructions ? copy.common.showLess : copy.common.showMore}...`;
+  const descriptionToggleLabel = showFullDescription ? copy.common.showLess : copy.common.showMore;
 
   useEffect(() => {
     setPlanDraft(createRecipeDetailDraft(recipe));
@@ -1223,12 +1212,12 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
                     {descriptionParagraphs.length > 2 ? (
                       <button
                         type="button"
-                        className="link-button detail-toggle"
+                        className="button button--secondary detail-toggle"
                         aria-expanded={showFullDescription}
                         aria-controls={descriptionRegionId}
                         onClick={() => setShowFullDescription((current) => !current)}
                       >
-                        {showFullDescription ? copy.common.showLess : copy.common.showMore}
+                        {descriptionToggleLabel}
                       </button>
                     ) : null}
                   </div>
@@ -1262,7 +1251,7 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
                   {canToggleIngredients ? (
                     <button
                       type="button"
-                      className="link-button detail-toggle detail-toggle--footer"
+                      className="button button--secondary detail-toggle detail-toggle--footer"
                       aria-expanded={showAllIngredients}
                       aria-controls={ingredientsRegionId}
                       onClick={() => setShowAllIngredients((current) => !current)}
@@ -1288,7 +1277,7 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
                 {canToggleInstructions ? (
                   <button
                     type="button"
-                    className="link-button detail-toggle detail-toggle--footer"
+                    className="button button--secondary detail-toggle detail-toggle--footer"
                     aria-expanded={showAllInstructions}
                     aria-controls={instructionsRegionId}
                     onClick={() => setShowAllInstructions((current) => !current)}
@@ -1484,7 +1473,6 @@ function RecipesSection({
 }) {
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const detailTriggerRef = useRef(null);
-  const recentJobs = workspace.jobs.slice(0, 4);
   const selectedRecipe = workspace.recipes.find((recipe) => recipe.id === selectedRecipeId) || null;
 
   useEffect(() => {
@@ -1504,70 +1492,53 @@ function RecipesSection({
         title={copy.dashboard.recipes.title}
         copy={copy.dashboard.recipes.description}
       />
-      <div className="content-grid content-grid--two">
-        <section className="surface surface--compact surface-pad import-card">
-          <SectionHeader
-            title={copy.dashboard.recipes.importTitle}
-            copy={copy.dashboard.recipes.importCopy}
-          />
-          <form className="form-grid" onSubmit={onImportRecipe}>
-            <Field id="recipe-url" label={copy.dashboard.recipes.urlLabel}>
-              <input
-                id="recipe-url"
-                className="control"
-                type="url"
-                inputMode="url"
-                placeholder={copy.dashboard.recipes.urlPlaceholder}
-                value={recipeUrl}
-                onChange={(event) => onRecipeUrlChange(event.target.value)}
-                required
-              />
-            </Field>
-            <button
-              type="submit"
-              className="button button--primary button--block"
-              disabled={recipeImportState.status === 'queued' || recipeImportState.status === 'running'}
-            >
-              {recipeImportState.status === 'queued' || recipeImportState.status === 'running'
-                ? copy.common.loading
-                : copy.dashboard.recipes.button}
-            </button>
-          </form>
-          <OperationStatePanel
-            state={recipeImportState}
-            loadingTitle={copy.dashboard.recipes.loadingTitle}
-            loadingCopy={copy.dashboard.recipes.loadingCopy}
-            successTitle={copy.dashboard.recipes.loadingSucceeded}
-            errorTitle={copy.dashboard.recipes.loadingFailed}
-            meta={
-              recipeImportState.status === 'succeeded' || recipeImportState.status === 'failed'
-                ? (
-                  <>
-                    {recipeImportState.sourceUrl ? <span className="chip chip--accent">{hostFromUrl(recipeImportState.sourceUrl)}</span> : null}
-                    {recipeImportState.job?.id ? <span className="chip">#{recipeImportState.job.id.slice(0, 8)}</span> : null}
-                    {recipeImportState.job?.recipe_id ? <span className="chip">recipe #{recipeImportState.job.recipe_id}</span> : null}
-                  </>
-                )
-                : null
-            }
-          />
-        </section>
-        <section className="surface surface--compact surface-pad list-card">
-          <SectionHeader title={copy.dashboard.recipes.jobsTitle} />
-          {recentJobs.length ? (
-            <div className="job-stack">
-              {recentJobs.map((job) => (
-                <JobCard key={job.id} copy={copy} job={job} locale={locale} compact />
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <p className="empty-title">{copy.dashboard.recipes.jobsEmpty}</p>
-              <p className="empty-copy">{copy.dashboard.recipes.loadingCopy}</p>
-            </div>
-          )}
-        </section>
-      </div>
+      <section className="surface surface--compact surface-pad import-card">
+        <SectionHeader
+          title={copy.dashboard.recipes.importTitle}
+          copy={copy.dashboard.recipes.importCopy}
+        />
+        <form className="form-grid" onSubmit={onImportRecipe}>
+          <Field id="recipe-url" label={copy.dashboard.recipes.urlLabel}>
+            <input
+              id="recipe-url"
+              className="control"
+              type="url"
+              inputMode="url"
+              placeholder={copy.dashboard.recipes.urlPlaceholder}
+              value={recipeUrl}
+              onChange={(event) => onRecipeUrlChange(event.target.value)}
+              required
+            />
+          </Field>
+          <button
+            type="submit"
+            className="button button--primary button--block"
+            disabled={recipeImportState.status === 'queued' || recipeImportState.status === 'running'}
+          >
+            {recipeImportState.status === 'queued' || recipeImportState.status === 'running'
+              ? copy.common.loading
+              : copy.dashboard.recipes.button}
+          </button>
+        </form>
+        <OperationStatePanel
+          state={recipeImportState}
+          loadingTitle={copy.dashboard.recipes.loadingTitle}
+          loadingCopy={copy.dashboard.recipes.loadingCopy}
+          successTitle={copy.dashboard.recipes.loadingSucceeded}
+          errorTitle={copy.dashboard.recipes.loadingFailed}
+          meta={
+            recipeImportState.status === 'succeeded' || recipeImportState.status === 'failed'
+              ? (
+                <>
+                  {recipeImportState.sourceUrl ? <span className="chip chip--accent">{hostFromUrl(recipeImportState.sourceUrl)}</span> : null}
+                  {recipeImportState.job?.id ? <span className="chip">#{recipeImportState.job.id.slice(0, 8)}</span> : null}
+                  {recipeImportState.job?.recipe_id ? <span className="chip">recipe #{recipeImportState.job.recipe_id}</span> : null}
+                </>
+              )
+              : null
+          }
+        />
+      </section>
       <section className="surface surface--compact surface-pad">
         <SectionHeader title={copy.dashboard.recipes.listTitle} />
         {workspace.recipes.length ? (
@@ -1599,6 +1570,58 @@ function RecipesSection({
           returnFocusRef={detailTriggerRef}
         />
       ) : null}
+    </div>
+  );
+}
+
+function JobsSection({ copy, workspace, locale, onRefreshJobs }) {
+  const sortedJobs = sortJobsByCreatedAt(workspace.jobs);
+  const pendingJobs = sortedJobs.filter((job) => job.status === 'queued' || job.status === 'running');
+  const completedJobs = sortedJobs.filter((job) => job.status === 'succeeded' || job.status === 'failed');
+
+  return (
+    <div className="dashboard-grid fade-in">
+      <SectionHeader
+        title={copy.dashboard.jobs.title}
+        copy={copy.dashboard.jobs.description}
+        actions={
+          <button type="button" className="button button--secondary" onClick={onRefreshJobs}>
+            {copy.dashboard.jobs.refreshButton}
+          </button>
+        }
+      />
+      <div className="content-grid content-grid--two">
+        <section className="surface surface--compact surface-pad list-card">
+          <SectionHeader title={copy.dashboard.jobs.pendingTitle} />
+          {pendingJobs.length ? (
+            <div className="job-stack">
+              {pendingJobs.map((job) => (
+                <JobCard key={job.id} copy={copy} job={job} locale={locale} />
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p className="empty-title">{copy.dashboard.jobs.pendingEmptyTitle}</p>
+              <p className="empty-copy">{copy.dashboard.jobs.pendingEmptyText}</p>
+            </div>
+          )}
+        </section>
+        <section className="surface surface--compact surface-pad list-card">
+          <SectionHeader title={copy.dashboard.jobs.historyTitle} />
+          {completedJobs.length ? (
+            <div className="job-stack">
+              {completedJobs.map((job) => (
+                <JobCard key={job.id} copy={copy} job={job} locale={locale} />
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p className="empty-title">{copy.dashboard.jobs.historyEmptyTitle}</p>
+              <p className="empty-copy">{copy.dashboard.jobs.historyEmptyText}</p>
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
@@ -2100,15 +2123,14 @@ function DashboardScreen({
   onGenerateShopping,
   onCopyShopping,
   onRefreshShopping,
+  onRefreshJobs,
   notice,
 }) {
-  const jobsSummaryDetail = importJobsSummaryText(copy, workspace.jobs);
   const summaryCards = [
     { label: copy.dashboard.stats.recipes, value: workspace.recipes.length },
     { label: copy.dashboard.stats.products, value: workspace.products.length },
     { label: copy.dashboard.stats.week, value: workspace.weekPlan.length },
     { label: copy.dashboard.stats.shopping, value: workspace.shoppingList.items.length },
-    { label: copy.dashboard.stats.jobs, value: workspace.jobs.length, detail: jobsSummaryDetail },
   ];
 
   const actions = [
@@ -2188,6 +2210,15 @@ function DashboardScreen({
         onRefreshShopping={onRefreshShopping}
       />
     );
+  } else if (activeSection === 'jobs') {
+    content = (
+      <JobsSection
+        copy={copy}
+        workspace={workspace}
+        locale={lang === 'nl' ? 'nl-NL' : 'en-GB'}
+        onRefreshJobs={onRefreshJobs}
+      />
+    );
   }
 
   return (
@@ -2208,7 +2239,6 @@ function DashboardScreen({
         <SectionHeader
           title={copy.dashboard.title}
           copy={copy.dashboard.subtitle}
-          note={replaceTemplate(copy.dashboard.welcome, { username: sessionUser.username })}
         />
         <NoticeBanner notice={notice} />
         <div className="summary-grid">
@@ -2867,6 +2897,7 @@ function App() {
         onGenerateShopping={onGenerateShopping}
         onCopyShopping={onCopyShopping}
         onRefreshShopping={onRefreshShopping}
+        onRefreshJobs={() => refreshWorkspace(session.token)}
         notice={dashboardNotice}
       />
     );
