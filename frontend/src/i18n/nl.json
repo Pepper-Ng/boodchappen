@@ -120,7 +120,11 @@
       "products": "Producten",
       "week": "Weekregels",
       "shopping": "Boodschappen",
-      "jobs": "Importtaken"
+      "jobs": "Importtaken",
+      "jobsEmpty": "Nog geen imports",
+      "jobsHistory": "Laatste: {status}",
+      "jobsActiveSingle": "1 actief: {status}",
+      "jobsActiveMultiple": "{count} actief: {status}"
     },
     "recipes": {
       "title": "Recepten",

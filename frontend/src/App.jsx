@@ -245,6 +245,42 @@ function recipeStatusText(copy, status) {
   return statusMap[status] || status;
 }
 
+function recipeJobStatusLabel(copy, status) {
+  return copy.dashboard.recipes.statusLabels[status] || status;
+}
+
+function sortJobsByCreatedAt(jobs) {
+  return [...jobs].sort((left, right) => {
+    const leftTime = Date.parse(String(left?.created_at || ''));
+    const rightTime = Date.parse(String(right?.created_at || ''));
+
+    return (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime);
+  });
+}
+
+function importJobsSummaryText(copy, jobs) {
+  const sortedJobs = sortJobsByCreatedAt(jobs);
+  if (!sortedJobs.length) {
+    return copy.dashboard.stats.jobsEmpty;
+  }
+
+  const activeJobs = sortedJobs.filter((job) => job.status === 'queued' || job.status === 'running');
+  if (activeJobs.length) {
+    const latestActiveJob = activeJobs[0];
+    return replaceTemplate(
+      activeJobs.length === 1 ? copy.dashboard.stats.jobsActiveSingle : copy.dashboard.stats.jobsActiveMultiple,
+      {
+        count: activeJobs.length,
+        status: recipeJobStatusLabel(copy, latestActiveJob.status),
+      }
+    );
+  }
+
+  return replaceTemplate(copy.dashboard.stats.jobsHistory, {
+    status: recipeJobStatusLabel(copy, sortedJobs[0].status),
+  });
+}
+
 function importStatusClass(status) {
   return `import-status--${status}`;
 }
@@ -974,12 +1010,16 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
   const instructionsRegionId = `recipe-detail-instructions-${recipe.id}`;
   const descriptionParagraphs = textParagraphs(recipe.description);
   const instructionSteps = textParagraphs(recipe.instructions);
+  const canToggleIngredients = recipe.ingredients.length > 3;
+  const canToggleInstructions = instructionSteps.length > 3;
   const visibleDescription = showFullDescription ? descriptionParagraphs : descriptionParagraphs.slice(0, 2);
-  const visibleIngredients = showAllIngredients ? recipe.ingredients : recipe.ingredients.slice(0, 6);
-  const visibleInstructions = showAllInstructions ? instructionSteps : instructionSteps.slice(0, 4);
+  const visibleIngredients = showAllIngredients ? recipe.ingredients : recipe.ingredients.slice(0, 3);
+  const visibleInstructions = showAllInstructions ? instructionSteps : instructionSteps.slice(0, 3);
   const sourceUrl = normalizeExternalUrl(recipe.source_url);
   const sourceHost = hostFromUrl(sourceUrl);
   const recipeLead = descriptionParagraphs[0] || sourceHost || snippet(recipe.instructions, 180);
+  const ingredientsToggleLabel = `${showAllIngredients ? copy.common.showLess : copy.common.showMore}...`;
+  const instructionsToggleLabel = `${showAllInstructions ? copy.common.showLess : copy.common.showMore}...`;
 
   useEffect(() => {
     setPlanDraft(createRecipeDetailDraft(recipe));
@@ -1118,8 +1158,8 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
                 src={recipe.image}
                 alt={recipe.name}
                 fallback={<span>{recipe.name}</span>}
-                className="recipe-detail-cover"
-                fallbackClassName="recipe-thumb recipe-detail-cover"
+                className="recipe-detail-cover recipe-detail-cover--image"
+                fallbackClassName="recipe-thumb recipe-detail-cover recipe-detail-cover--fallback"
               />
               <div className="recipe-detail-meta">
                 <span className="chip chip--accent">
@@ -1208,19 +1248,6 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
                 <section className="detail-card">
                   <div className="panel-heading">
                     <h3 className="panel-title">{copy.dashboard.recipes.ingredientsTitle}</h3>
-                    {recipe.ingredients.length > 6 ? (
-                      <button
-                        type="button"
-                        className="link-button detail-toggle"
-                        aria-expanded={showAllIngredients}
-                        aria-controls={ingredientsRegionId}
-                        onClick={() => setShowAllIngredients((current) => !current)}
-                      >
-                        {showAllIngredients
-                          ? copy.dashboard.recipes.showFewerIngredients
-                          : copy.dashboard.recipes.showAllIngredients}
-                      </button>
-                    ) : null}
                   </div>
                   <div id={ingredientsRegionId} className="recipe-detail-ingredients">
                     {visibleIngredients.map((ingredient, index) => (
@@ -1232,25 +1259,23 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
                       </div>
                     ))}
                   </div>
+                  {canToggleIngredients ? (
+                    <button
+                      type="button"
+                      className="link-button detail-toggle detail-toggle--footer"
+                      aria-expanded={showAllIngredients}
+                      aria-controls={ingredientsRegionId}
+                      onClick={() => setShowAllIngredients((current) => !current)}
+                    >
+                      {ingredientsToggleLabel}
+                    </button>
+                  ) : null}
                 </section>
               </div>
 
               <section className="detail-card detail-card--instructions">
                 <div className="panel-heading">
                   <h3 className="panel-title">{copy.dashboard.recipes.instructionsTitle}</h3>
-                  {instructionSteps.length > 4 ? (
-                    <button
-                      type="button"
-                      className="link-button detail-toggle"
-                      aria-expanded={showAllInstructions}
-                      aria-controls={instructionsRegionId}
-                      onClick={() => setShowAllInstructions((current) => !current)}
-                    >
-                      {showAllInstructions
-                        ? copy.dashboard.recipes.showFewerInstructions
-                        : copy.dashboard.recipes.showAllInstructions}
-                    </button>
-                  ) : null}
                 </div>
                 <ol id={instructionsRegionId} className="recipe-instruction-list">
                   {visibleInstructions.map((step, index) => (
@@ -1260,6 +1285,17 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
                     </li>
                   ))}
                 </ol>
+                {canToggleInstructions ? (
+                  <button
+                    type="button"
+                    className="link-button detail-toggle detail-toggle--footer"
+                    aria-expanded={showAllInstructions}
+                    aria-controls={instructionsRegionId}
+                    onClick={() => setShowAllInstructions((current) => !current)}
+                  >
+                    {instructionsToggleLabel}
+                  </button>
+                ) : null}
               </section>
             </div>
           </div>
@@ -1374,7 +1410,7 @@ function ProductCard({ copy, product, locale }) {
 }
 
 function JobCard({ copy, job, locale, compact = false }) {
-  const statusLabel = copy.dashboard.recipes.statusLabels[job.status] || job.status;
+  const statusLabel = recipeJobStatusLabel(copy, job.status);
   const sourceText = String(job.source_url || '').trim();
   const sourceHost = hostFromUrl(job.source_url);
   const sourceTitle = sourceHost || sourceText;
@@ -2066,12 +2102,13 @@ function DashboardScreen({
   onRefreshShopping,
   notice,
 }) {
+  const jobsSummaryDetail = importJobsSummaryText(copy, workspace.jobs);
   const summaryCards = [
     { label: copy.dashboard.stats.recipes, value: workspace.recipes.length },
     { label: copy.dashboard.stats.products, value: workspace.products.length },
     { label: copy.dashboard.stats.week, value: workspace.weekPlan.length },
     { label: copy.dashboard.stats.shopping, value: workspace.shoppingList.items.length },
-    { label: copy.dashboard.stats.jobs, value: workspace.jobs.length },
+    { label: copy.dashboard.stats.jobs, value: workspace.jobs.length, detail: jobsSummaryDetail },
   ];
 
   const actions = [
@@ -2179,6 +2216,7 @@ function DashboardScreen({
             <article key={card.label} className="surface surface--compact summary-card">
               <span className="summary-label">{card.label}</span>
               <span className="summary-value">{card.value}</span>
+              {card.detail ? <span className="summary-detail">{card.detail}</span> : null}
             </article>
           ))}
         </div>

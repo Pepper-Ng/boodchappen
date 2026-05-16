@@ -302,6 +302,7 @@
   width: min(940px, calc(100vw - 2.1rem));
   max-height: none;
   min-height: 0;
+  min-width: 0;
   overflow: visible;
   padding: 0;
 }
@@ -323,6 +324,7 @@
   max-height: none;
   overflow: visible;
   padding: 0.9rem;
+  min-width: 0;
 }
 
 .recipe-detail-header {
@@ -378,18 +380,37 @@
   grid-template-columns: minmax(240px, 0.38fr) minmax(0, 0.62fr);
   gap: 0.9rem;
   align-items: start;
+  min-width: 0;
+}
+
+.recipe-detail-layout > *,
+.recipe-detail-summary-grid > * {
+  min-width: 0;
 }
 
 .recipe-detail-rail {
   position: static;
   align-self: start;
+  width: 100%;
+  min-width: 0;
 }
 
 .recipe-detail-cover {
-  width: 100%;
-  aspect-ratio: 16 / 10;
-  max-height: 220px;
   border-radius: 1rem;
+  max-width: 100%;
+}
+
+.recipe-detail-cover--image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: auto;
+  margin-inline: auto;
+}
+
+.recipe-detail-cover--fallback {
+  min-height: 12rem;
 }
 
 .recipe-detail-meta {
@@ -402,6 +423,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .detail-card {
@@ -409,6 +431,7 @@
   border-radius: 1rem;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface-strong) 92%, transparent);
+  min-width: 0;
 }
 
 .recipe-detail-dialog .panel-title {
@@ -427,6 +450,11 @@
   padding: 0;
 }
 
+.detail-toggle--footer {
+  justify-self: start;
+  margin-top: 0.05rem;
+}
+
 .detail-paragraph {
   margin: 0;
   color: var(--text-strong);
@@ -440,6 +468,7 @@
 .recipe-detail-ingredients {
   display: grid;
   gap: 0.45rem;
+  min-width: 0;
 }
 
 .recipe-detail-ingredient {
@@ -451,6 +480,7 @@
   border-radius: 0.8rem;
   background: var(--surface-tint);
   color: var(--muted);
+  min-width: 0;
 }
 
 .recipe-detail-ingredient strong,
@@ -461,6 +491,16 @@
 .recipe-detail-ingredient strong,
 .instruction-copy {
   overflow-wrap: anywhere;
+}
+
+.recipe-detail-ingredient strong {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.recipe-detail-ingredient span {
+  flex: none;
+  white-space: nowrap;
 }
 
 .recipe-instruction-list {
@@ -554,6 +594,8 @@
 
   .recipe-detail-rail {
     position: static;
+    max-width: min(100%, 32rem);
+    justify-self: center;
   }
 }
 
@@ -614,20 +656,38 @@
   }
 
   .page-topbar--app {
-    top: 0.5rem;
+    top: 0.4rem;
+    margin-bottom: 0.35rem;
+    padding: 0.45rem 0.58rem;
+    border-radius: 1.05rem;
   }
 
   .page-topbar--app .brand {
     width: auto;
     flex: 1 1 auto;
+    gap: 0.58rem;
+    padding: 0.12rem;
   }
 
   .page-topbar--app .brand-copy {
     min-width: 0;
   }
 
+  .page-topbar--app .brand-mark {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .page-topbar--app .brand-name {
+    font-size: 1.08rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .page-topbar--app .nav-hamburger {
-    width: 3rem;
+    width: 2.8rem;
+    height: 2.8rem;
     margin-left: auto;
   }
 
@@ -726,7 +786,6 @@
   }
 
   .recipe-detail-cover {
-    max-height: min(32vh, 220px);
     border-radius: 1.1rem;
   }
 

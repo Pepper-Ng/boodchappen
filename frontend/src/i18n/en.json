@@ -120,7 +120,11 @@
       "products": "Products",
       "week": "Week entries",
       "shopping": "Shopping items",
-      "jobs": "Import jobs"
+      "jobs": "Import jobs",
+      "jobsEmpty": "No imports yet",
+      "jobsHistory": "Latest: {status}",
+      "jobsActiveSingle": "1 active: {status}",
+      "jobsActiveMultiple": "{count} active: {status}"
     },
     "recipes": {
       "title": "Recipes",
