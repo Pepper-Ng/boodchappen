@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import en from './i18n/en.json';
 import nl from './i18n/nl.json';
 import {
@@ -967,6 +968,7 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
   const [showAllIngredients, setShowAllIngredients] = useState(false);
   const [showAllInstructions, setShowAllInstructions] = useState(false);
   const titleId = `recipe-detail-title-${recipe.id}`;
+  const leadId = `recipe-detail-lead-${recipe.id}`;
   const descriptionRegionId = `recipe-detail-description-${recipe.id}`;
   const ingredientsRegionId = `recipe-detail-ingredients-${recipe.id}`;
   const instructionsRegionId = `recipe-detail-instructions-${recipe.id}`;
@@ -1077,7 +1079,7 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
     }
   }
 
-  return (
+  const dialog = (
     <div className="recipe-detail-overlay" onClick={onClose}>
       <section
         ref={dialogRef}
@@ -1085,24 +1087,26 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={leadId}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="recipe-detail-shell">
+          <div className="recipe-detail-handle" aria-hidden="true" />
           <div className="recipe-detail-header">
             <div className="recipe-detail-heading">
               <span className="eyebrow">{copy.dashboard.recipes.viewRecipe}</span>
               <h2 id={titleId} ref={titleRef} tabIndex={-1} className="recipe-detail-title">{recipe.name}</h2>
-              <p className="recipe-detail-lead">
+              <p id={leadId} className="recipe-detail-lead">
                 {recipeLead}
               </p>
             </div>
             <div className="recipe-detail-actions">
               {sourceUrl ? (
-                <a className="button button--secondary" href={sourceUrl} target="_blank" rel="noreferrer">
+                <a className="button button--secondary recipe-detail-source" href={sourceUrl} target="_blank" rel="noreferrer">
                   {copy.dashboard.recipes.openSource}
                 </a>
               ) : null}
-              <button type="button" className="button button--ghost" onClick={onClose}>
+              <button type="button" className="button button--ghost recipe-detail-close" onClick={onClose}>
                 {copy.common.close}
               </button>
             </div>
@@ -1263,6 +1267,8 @@ function RecipeDetailDialog({ copy, recipe, locale, onClose, onAddToWeek, return
       </section>
     </div>
   );
+
+  return createPortal(dialog, document.body);
 }
 
 function RecipeCard({ copy, recipe, locale, onOpenDetails }) {
@@ -1576,8 +1582,8 @@ function ProductsSection({
         title={copy.dashboard.products.title}
         copy={copy.dashboard.products.description}
       />
-      <div className="content-grid content-grid--two">
-        <section className="surface surface--compact surface-pad import-card">
+      <div className="content-grid content-grid--two content-grid--products">
+        <section className="surface surface--compact surface-pad import-card import-card--product">
           <SectionHeader
             title={copy.dashboard.products.importTitle}
             copy={copy.dashboard.products.importCopy}
@@ -1597,7 +1603,7 @@ function ProductsSection({
             </Field>
             <button
               type="submit"
-              className="button button--primary button--block"
+              className="button button--primary button--block button--product-import"
               disabled={productImportState.status === 'running'}
             >
               {productImportState.status === 'running' ? copy.common.loading : copy.dashboard.products.button}
