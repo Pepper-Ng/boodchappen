@@ -97,6 +97,14 @@ def test_weekplan_rejects_unknown_day(client: TestClient):
     assert response.status_code == 422, response.text
 
 
+def test_create_grocery_list_rejects_blank_name(client: TestClient):
+    auth = register_user(client, email="list-owner@example.com", username="listowner")
+    headers = {"Authorization": f"Bearer {auth['access_token']}"}
+
+    response = client.post("/grocery-lists", headers=headers, json={"name": "    "})
+    assert response.status_code == 422, response.text
+
+
 def test_recipe_import_job_and_shopping_list_flow(client: TestClient, monkeypatch: pytest.MonkeyPatch):
     auth = register_user(client)
     headers = {"Authorization": f"Bearer {auth['access_token']}"}
@@ -185,14 +193,15 @@ def test_recipe_import_job_and_shopping_list_flow(client: TestClient, monkeypatc
         json={"include_weekplan": True, "recipe_ids": []},
     )
     assert build_list_response.status_code == 200, build_list_response.text
-    assert build_list_response.json()["items"]
+    built_list = build_list_response.json()
+    assert built_list["items"]
 
-    shopping_list = client.get("/shopping-list", headers=headers)
-    assert shopping_list.status_code == 200, shopping_list.text
-
-    items = {(item["name"], item["unit"]): item["quantity"] for item in shopping_list.json()["items"]}
-    assert items[("ui", "stuk")] == 4
-    assert items[("olijfolie", "el")] == 8
-
-    export = client.get("/shopping-list/export", headers=headers)
-    assert export.status_code == 200, export.text
+    first_item = built_list["items"][0]
+    updated_response = client.patch(
+        f"/grocery-lists/{shopping_list_id}/items/{first_item['id']}",
+        headers=headers,
+        json={"quantity": first_item["quantity"] + 1},
+    )
+    assert updated_response.status_code == 200, updated_response.text
+    updated_items = {item["id"]: item for item in updated_response.json()["items"]}
+    assert updated_items[first_item["id"]]["quantity"] == pytest.approx(first_item["quantity"] + 1)

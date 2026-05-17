@@ -208,14 +208,6 @@ export function deleteWeekPlan(token, entryId) {
   });
 }
 
-export function loadShoppingList(token) {
-  return request('/shopping-list', { token });
-}
-
-export function loadShoppingListExport(token) {
-  return request('/shopping-list/export', { token });
-}
-
 export function autoMatchRecipe(token, recipeId) {
   return request(`/recipes/${recipeId}/auto-match`, {
     token,

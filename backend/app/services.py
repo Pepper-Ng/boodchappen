@@ -532,13 +532,8 @@ def match_product_to_ingredient(normalized_name: str, products: list[Any]):
         if getattr(product, "normalized_title", "") == normalized_name:
             return product
 
-    for product in products:
-        normalized_title = getattr(product, "normalized_title", "")
-        if normalized_name in normalized_title or normalized_title in normalized_name:
-            return product
-
     if ingredient_tokens:
-        scored_products: list[tuple[int, Any]] = []
+        scored_products: list[tuple[float, int, Any]] = []
         for product in products:
             normalized_title = getattr(product, "normalized_title", "")
             product_tokens = {token for token in normalized_title.split() if token}
@@ -547,10 +542,20 @@ def match_product_to_ingredient(normalized_name: str, products: list[Any]):
 
             overlap = ingredient_tokens & product_tokens
             if overlap:
-                scored_products.append((len(overlap), product))
+                overlap_count = len(overlap)
+                overlap_ratio = overlap_count / max(len(ingredient_tokens), 1)
+                scored_products.append((overlap_ratio, overlap_count, product))
 
         if scored_products:
-            scored_products.sort(key=lambda item: item[0], reverse=True)
-            return scored_products[0][1]
+            scored_products.sort(key=lambda item: (item[0], item[1]), reverse=True)
+            best_ratio, best_overlap, best_product = scored_products[0]
+            if best_ratio >= 0.6 or best_overlap >= 2:
+                return best_product
+            if (
+                best_overlap == 1
+                and len(ingredient_tokens) <= 2
+                and any(len(token) >= 5 for token in ingredient_tokens)
+            ):
+                return best_product
 
     return None

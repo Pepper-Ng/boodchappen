@@ -144,24 +144,16 @@ class WeekPlanOut(BaseModel):
     created_at: datetime
 
 
-class ShoppingListItemOut(BaseModel):
-    name: str
-    normalized_name: str
-    quantity: float
-    unit: str
-    product_id: Optional[int]
-    product_title: Optional[str]
-    product_url: Optional[str]
-    search_url: Optional[str]
-
-
-class ShoppingListOut(BaseModel):
-    items: list[ShoppingListItemOut]
-    export_lines: list[str]
-
-
 class GroceryListCreateIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Name cannot be empty")
+        return trimmed
 
 
 class GroceryListBuildIn(BaseModel):

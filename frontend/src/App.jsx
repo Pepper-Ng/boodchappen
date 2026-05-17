@@ -18,7 +18,6 @@ import {
   listRecipes,
   listWeekPlan,
   loadCurrentUser,
-  loadShoppingList,
   loginAccount,
   matchRecipeIngredient,
   registerAccount,
@@ -83,7 +82,6 @@ function createEmptyWorkspace() {
     recipes: [],
     products: [],
     weekPlan: [],
-    shoppingList: { items: [], export_lines: [] },
     groceryLists: [],
     activeGroceryList: null,
     jobs: [],
@@ -208,22 +206,6 @@ function getFocusableElements(container) {
     const styles = window.getComputedStyle(element);
     return styles.display !== 'none' && styles.visibility !== 'hidden';
   });
-}
-
-function shortExportLine(item, locale) {
-  const quantity = Number(item?.quantity || 0);
-  const parts = [];
-
-  if (quantity > 0) {
-    parts.push(formatQuantity(quantity, locale));
-  }
-
-  if (item?.unit) {
-    parts.push(item.unit);
-  }
-
-  parts.push(item?.name || item?.normalized_name || '');
-  return parts.filter(Boolean).join(' ');
 }
 
 function weekSummaryText(copy, count) {
@@ -1563,42 +1545,6 @@ function JobCard({ copy, job, locale, compact = false }) {
   );
 }
 
-function ShoppingRow({ copy, item, locale }) {
-  const hasProduct = Boolean(item.product_title);
-  const matchLabel = hasProduct ? copy.dashboard.shopping.matchedLabel : copy.dashboard.shopping.searchLabel;
-  const matchClass = hasProduct ? 'shopping-match shopping-match--good' : 'shopping-match shopping-match--search';
-
-  return (
-    <article className="shopping-row">
-      <div className="shopping-details">
-        <div className="shopping-meta">
-          <h3 className="shopping-title">{shortExportLine(item, locale)}</h3>
-          <span className={matchClass}>{matchLabel}</span>
-        </div>
-        {hasProduct ? (
-          <p className="shopping-copy">
-            {copy.dashboard.shopping.productLabel}: {item.product_title}
-          </p>
-        ) : item.search_url ? (
-          <p className="shopping-copy">{hostFromUrl(item.search_url)}</p>
-        ) : null}
-      </div>
-      <div className="link-row">
-        {item.product_url ? (
-          <a className="link-button" href={item.product_url} target="_blank" rel="noreferrer">
-            {copy.dashboard.products.openSource}
-          </a>
-        ) : null}
-        {item.search_url ? (
-          <a className="link-button" href={item.search_url} target="_blank" rel="noreferrer">
-            {copy.dashboard.shopping.searchLabel}
-          </a>
-        ) : null}
-      </div>
-    </article>
-  );
-}
-
 function RecipesSection({
   copy,
   workspace,
@@ -1991,7 +1937,16 @@ function ShoppingSection({
   const [listName, setListName] = useState('');
   const [includeWeekPlan, setIncludeWeekPlan] = useState(true);
   const [selectedRecipeIds, setSelectedRecipeIds] = useState([]);
+  const [quantityDrafts, setQuantityDrafts] = useState({});
   const matchedRecipes = workspace.recipes.filter((recipe) => recipe.is_fully_matched);
+
+  useEffect(() => {
+    const nextDrafts = {};
+    for (const item of items) {
+      nextDrafts[item.id] = String(item.quantity ?? '');
+    }
+    setQuantityDrafts(nextDrafts);
+  }, [items]);
 
   function toggleRecipe(recipeId) {
     setSelectedRecipeIds((current) => (
@@ -2020,6 +1975,37 @@ function ShoppingSection({
       include_weekplan: includeWeekPlan,
       recipe_ids: selectedRecipeIds,
     });
+  }
+
+  async function persistQuantity(item) {
+    if (!workspace.activeGroceryList) {
+      return;
+    }
+
+    const draftValue = quantityDrafts[item.id] ?? '';
+    const nextQuantity = Number(draftValue);
+    if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) {
+      setQuantityDrafts((current) => ({
+        ...current,
+        [item.id]: String(item.quantity),
+      }));
+      return;
+    }
+
+    if (nextQuantity === Number(item.quantity)) {
+      return;
+    }
+
+    try {
+      await onUpdateListItem(workspace.activeGroceryList.id, item.id, {
+        quantity: nextQuantity,
+      });
+    } catch {
+      setQuantityDrafts((current) => ({
+        ...current,
+        [item.id]: String(item.quantity),
+      }));
+    }
   }
 
   function handleExportJson() {
@@ -2139,15 +2125,32 @@ function ShoppingSection({
                         type="number"
                         min="0"
                         step="0.1"
-                        value={item.quantity}
-                        onChange={(event) => onUpdateListItem(workspace.activeGroceryList.id, item.id, {
-                          quantity: Number(event.target.value),
-                        })}
+                        value={quantityDrafts[item.id] ?? ''}
+                        onChange={(event) => {
+                          const nextValue = event.target.value;
+                          setQuantityDrafts((current) => ({
+                            ...current,
+                            [item.id]: nextValue,
+                          }));
+                        }}
+                        onBlur={() => {
+                          persistQuantity(item);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            event.currentTarget.blur();
+                          }
+                        }}
                       />
                       <button
                         type="button"
                         className="button button--secondary"
-                        onClick={() => onUpdateListItem(workspace.activeGroceryList.id, item.id, { remove: true })}
+                        onClick={() => {
+                          onUpdateListItem(workspace.activeGroceryList.id, item.id, { remove: true }).catch(() => {
+                            // Notice is handled centrally in onUpdateShoppingListItem.
+                          });
+                        }}
                       >
                         {copy.dashboard.week.removeLabel}
                       </button>
@@ -2369,7 +2372,7 @@ function DashboardScreen({
     { label: copy.dashboard.stats.recipes, value: workspace.recipes.length },
     { label: copy.dashboard.stats.products, value: workspace.products.length },
     { label: copy.dashboard.stats.week, value: workspace.weekPlan.length },
-    { label: copy.dashboard.stats.shopping, value: workspace.shoppingList.items.length },
+    { label: copy.dashboard.stats.shopping, value: workspace.activeGroceryList?.items.length || 0 },
   ];
 
   const actions = [
@@ -2562,6 +2565,7 @@ function App() {
   const authPanelRef = useRef(null);
   const mountedRef = useRef(true);
   const recipeImportRunRef = useRef(0);
+  const activeGroceryListIdRef = useRef(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -2569,6 +2573,10 @@ function App() {
       mountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    activeGroceryListIdRef.current = workspace.activeGroceryList?.id ?? null;
+  }, [workspace.activeGroceryList]);
 
   useEffect(() => {
     setStoredValue(storageKeys.language, lang);
@@ -2601,26 +2609,27 @@ function App() {
     }
   }, [copy, tutorialChapterId]);
 
-  async function loadWorkspace(token) {
-    const [recipes, products, weekPlan, shoppingList, jobs, groceryLists] = await Promise.all([
+  async function loadWorkspace(token, preferredGroceryListId = null) {
+    const [recipes, products, weekPlan, jobs, groceryLists] = await Promise.all([
       listRecipes(token),
       listProducts(token),
       listWeekPlan(token),
-      loadShoppingList(token),
       listImportJobs(token),
       listGroceryLists(token),
     ]);
 
     let activeGroceryList = null;
     if (groceryLists.length) {
-      activeGroceryList = await getGroceryList(token, groceryLists[0].id);
+      const targetListId = preferredGroceryListId || activeGroceryListIdRef.current;
+      const selected = groceryLists.find((list) => list.id === targetListId) || groceryLists[0];
+      activeGroceryList = await getGroceryList(token, selected.id);
     }
 
     if (!mountedRef.current) {
       return false;
     }
 
-    setWorkspace({ recipes, products, weekPlan, shoppingList, jobs, groceryLists, activeGroceryList });
+    setWorkspace({ recipes, products, weekPlan, jobs, groceryLists, activeGroceryList });
     setWeekDraft((current) => ({
       ...current,
       recipeId: current.recipeId || (recipes.find((recipe) => recipe.is_fully_matched) ? String(recipes.find((recipe) => recipe.is_fully_matched).id) : ''),
@@ -2629,9 +2638,9 @@ function App() {
     return true;
   }
 
-  async function refreshWorkspace(token) {
+  async function refreshWorkspace(token, preferredGroceryListId = null) {
     try {
-      await loadWorkspace(token);
+      await loadWorkspace(token, preferredGroceryListId);
       return true;
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -2970,6 +2979,7 @@ function App() {
   async function onSelectShoppingList(listId) {
     try {
       const activeGroceryList = await getGroceryList(session.token, listId);
+      activeGroceryListIdRef.current = listId;
       setWorkspace((current) => ({ ...current, activeGroceryList }));
     } catch (error) {
       setDashboardNotice({ type: 'danger', text: error.message || copy.dashboard.shopping.selectListLabel });
@@ -2993,9 +3003,11 @@ function App() {
     try {
       const activeGroceryList = await updateGroceryListItem(session.token, listId, itemId, payload);
       const groceryLists = await listGroceryLists(session.token);
+      activeGroceryListIdRef.current = listId;
       setWorkspace((current) => ({ ...current, groceryLists, activeGroceryList }));
     } catch (error) {
       setDashboardNotice({ type: 'danger', text: error.message || copy.dashboard.shopping.refreshButton });
+      throw error;
     }
   }
 

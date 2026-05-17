@@ -36,19 +36,14 @@ from .schemas import (
     RecipeIngredientOut,
     RecipeOut,
     RegisterIn,
-    ShoppingListItemOut,
-    ShoppingListOut,
     TokenOut,
     UserOut,
     WeekPlanIn,
     WeekPlanOut,
 )
 from .services import (
-    aggregate_ingredients,
     choose_display_unit,
-    build_ah_search_url,
     convert_to_base_unit,
-    format_shopping_line,
     import_ah_product,
     match_product_to_ingredient,
     normalize_product_title,
@@ -294,9 +289,10 @@ def auto_match_recipe_ingredients(session: Session, owner_id: int, recipe_id: in
     matched = 0
     unmatched = 0
     for ingredient in ingredients:
-        matched_product = match_product_to_ingredient(ingredient.normalized_name, products)
-        ingredient.product_id = matched_product.id if matched_product else None
-        session.add(ingredient)
+        if not ingredient.product_id:
+            matched_product = match_product_to_ingredient(ingredient.normalized_name, products)
+            ingredient.product_id = matched_product.id if matched_product else None
+            session.add(ingredient)
         if ingredient.product_id:
             matched += 1
         else:
@@ -307,6 +303,7 @@ def auto_match_recipe_ingredients(session: Session, owner_id: int, recipe_id: in
 
 
 def save_recipe_import(session: Session, owner_id: int, source_url: str, payload: dict) -> Recipe:
+    preserved_matches: dict[str, list[int]] = {}
     recipe = session.exec(
         select(Recipe).where(Recipe.owner_id == owner_id).where(Recipe.source_url == source_url)
     ).first()
@@ -327,6 +324,13 @@ def save_recipe_import(session: Session, owner_id: int, source_url: str, payload
         session.commit()
         session.refresh(recipe)
     else:
+        existing_ingredients = session.exec(
+            select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe.id)
+        ).all()
+        for ingredient in existing_ingredients:
+            if ingredient.product_id:
+                preserved_matches.setdefault(ingredient.normalized_name, []).append(ingredient.product_id)
+
         recipe.external_id = payload.get("external_id")
         recipe.name = payload["name"]
         recipe.normalized_name = payload["normalized_name"]
@@ -338,14 +342,15 @@ def save_recipe_import(session: Session, owner_id: int, source_url: str, payload
         session.commit()
         session.refresh(recipe)
 
-        existing_ingredients = session.exec(
-            select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe.id)
-        ).all()
         for ingredient in existing_ingredients:
             session.delete(ingredient)
         session.commit()
 
     for ingredient in payload["ingredients"]:
+        product_id = None
+        candidates = preserved_matches.get(ingredient["normalized_name"], [])
+        if candidates:
+            product_id = candidates.pop(0)
         session.add(
             RecipeIngredient(
                 recipe_id=recipe.id,
@@ -354,60 +359,13 @@ def save_recipe_import(session: Session, owner_id: int, source_url: str, payload
                 quantity=ingredient["quantity"],
                 unit=ingredient["unit"],
                 raw_text=ingredient["raw_text"],
+                product_id=product_id,
             )
         )
     session.commit()
     auto_match_recipe_ingredients(session, owner_id, recipe.id)
     session.refresh(recipe)
     return recipe
-
-
-def build_shopping_list(session: Session, user: User) -> ShoppingListOut:
-    plans = session.exec(
-        select(WeekPlan).where(WeekPlan.owner_id == user.id).order_by(WeekPlan.day, WeekPlan.created_at)
-    ).all()
-    scaled_ingredients: list[dict] = []
-
-    for plan in plans:
-        recipe = session.get(Recipe, plan.recipe_id)
-        if not recipe or recipe.owner_id != user.id:
-            continue
-
-        factor = plan.persons / max(recipe.base_persons, 1)
-        recipe_ingredients = session.exec(
-            select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe.id)
-        ).all()
-        for ingredient in recipe_ingredients:
-            scaled_ingredients.append(
-                {
-                    "name": ingredient.name,
-                    "normalized_name": ingredient.normalized_name,
-                    "quantity": ingredient.quantity * factor,
-                    "unit": ingredient.unit,
-                }
-            )
-
-    aggregated = aggregate_ingredients(scaled_ingredients)
-    products = session.exec(select(Product).where(Product.owner_id == user.id)).all()
-    items: list[ShoppingListItemOut] = []
-    export_lines: list[str] = []
-
-    for item in aggregated:
-        product = match_product_to_ingredient(item["normalized_name"], products)
-        shopping_item = ShoppingListItemOut(
-            name=item["name"],
-            normalized_name=item["normalized_name"],
-            quantity=item["quantity"],
-            unit=item["unit"],
-            product_id=product.id if product else None,
-            product_title=product.title if product else None,
-            product_url=product.source_url if product else None,
-            search_url=None if product else build_ah_search_url(item["name"]),
-        )
-        items.append(shopping_item)
-        export_lines.append(format_shopping_line(shopping_item.quantity, shopping_item.unit, shopping_item.name))
-
-    return ShoppingListOut(items=items, export_lines=export_lines)
 
 
 async def process_recipe_import_job(job_id: str) -> None:
@@ -843,13 +801,3 @@ def delete_weekplan(entry_id: int, session: Session = Depends(get_session), user
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Week plan entry not found")
     session.delete(item)
     session.commit()
-
-
-@app.get("/shopping-list/export", response_model=ShoppingListOut)
-def export_shopping_list(session: Session = Depends(get_session), user: User = Depends(current_user)):
-    return build_shopping_list(session, user)
-
-
-@app.get("/shopping-list", response_model=ShoppingListOut)
-def shopping_list(session: Session = Depends(get_session), user: User = Depends(current_user)):
-    return build_shopping_list(session, user)
