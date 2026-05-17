@@ -206,6 +206,8 @@
       "matchSaveFailed": "Kon de ingrediënt-match niet opslaan.",
       "matchSelectExisting": "Kies een bestaand product",
       "matchUrlPlaceholder": "of plak een AH-product-URL om te importeren en matchen",
+      "productLabel": "Product",
+      "noMatchLabel": "Geen match",
       "matchedLabel": "Gematcht",
       "unmatchedLabel": "Niet gematcht",
       "matchRequiredTitle": "Alleen volledig gematchte recepten zijn planbaar",

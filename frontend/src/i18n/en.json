@@ -206,6 +206,8 @@
       "matchSaveFailed": "Could not save the ingredient match.",
       "matchSelectExisting": "Select an existing product",
       "matchUrlPlaceholder": "or paste an AH product URL to import and match",
+      "productLabel": "Product",
+      "noMatchLabel": "No match",
       "matchedLabel": "Matched",
       "unmatchedLabel": "Unmatched",
       "matchRequiredTitle": "Only fully matched recipes can be planned",

@@ -146,6 +146,30 @@ function formatQuantity(value, locale) {
   }).format(numericValue);
 }
 
+function formatIngredientName(value) {
+  const text = String(value || '').trim();
+  if (!text) {
+    return '';
+  }
+
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function formatIngredientMeasure(ingredient, locale) {
+  const parts = [];
+  const quantity = Number(ingredient?.quantity || 0);
+
+  if (quantity > 0) {
+    parts.push(formatQuantity(quantity, locale));
+  }
+
+  if (ingredient?.unit) {
+    parts.push(ingredient.unit);
+  }
+
+  return parts.join(' ');
+}
+
 function normalizeExternalUrl(value) {
   const source = String(value || '').trim();
 
@@ -1000,6 +1024,7 @@ function RecipeDetailDialog({
   const [matchingBusy, setMatchingBusy] = useState(false);
   const [matchingNotice, setMatchingNotice] = useState({ type: '', text: '' });
   const [matchDrafts, setMatchDrafts] = useState({});
+  const [openIngredientMatchId, setOpenIngredientMatchId] = useState(null);
   const [listOverlayOpen, setListOverlayOpen] = useState(false);
   const [listBusy, setListBusy] = useState(false);
   const [listNotice, setListNotice] = useState({ type: '', text: '' });
@@ -1037,6 +1062,7 @@ function RecipeDetailDialog({
     setMatchingBusy(false);
     setMatchingNotice({ type: '', text: '' });
     setMatchDrafts({});
+    setOpenIngredientMatchId(null);
     setListOverlayOpen(false);
     setListBusy(false);
     setListNotice({ type: '', text: '' });
@@ -1247,6 +1273,7 @@ function RecipeDetailDialog({
     try {
       await onMatchIngredient(recipe.id, ingredient.id, payload);
       setMatchingNotice({ type: 'success', text: copy.dashboard.recipes.matchSaved });
+      setOpenIngredientMatchId(null);
       setMatchDrafts((current) => ({
         ...current,
         [ingredient.id]: { productId: '', ahUrl: '' },
@@ -1308,14 +1335,6 @@ function RecipeDetailDialog({
                   {copy.dashboard.recipes.openSource}
                 </a>
               ) : null}
-              <button
-                type="button"
-                className="button button--secondary"
-                onClick={handleDeleteRecipe}
-                disabled={deleteBusy}
-              >
-                {deleteBusy ? copy.common.loading : copy.dashboard.recipes.deleteButton}
-              </button>
               <button type="button" className="button button--ghost recipe-detail-close" onClick={onClose}>
                 {copy.common.close}
               </button>
@@ -1492,16 +1511,26 @@ function RecipeDetailDialog({
                     {visibleIngredients.map((ingredient, index) => (
                       <div key={`${recipe.id}-ingredient-${index + 1}`} className="recipe-detail-ingredient">
                         <div className="ingredient-match-main">
-                          <strong>{ingredient.raw_text}</strong>
-                          <span>
-                            {formatQuantity(ingredient.quantity, locale)} {ingredient.unit}
-                          </span>
-                          <span className={`chip ${ingredient.product_id ? 'chip--success' : 'chip--warning'}`}>
-                            {ingredient.product_id ? copy.dashboard.recipes.matchedLabel : copy.dashboard.recipes.unmatchedLabel}
-                          </span>
-                          {ingredient.product_title ? <span className="ingredient-product-name">{ingredient.product_title}</span> : null}
+                          <strong>{formatIngredientName(ingredient.name || ingredient.normalized_name || ingredient.raw_text)}</strong>
+                          {formatIngredientMeasure(ingredient, locale) ? (
+                            <span className="ingredient-measurement">{formatIngredientMeasure(ingredient, locale)}</span>
+                          ) : null}
+                          {ingredient.product_id ? (
+                            <span className="ingredient-product-name">
+                              {copy.dashboard.recipes.productLabel}: {ingredient.product_title}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="button button--ghost ingredient-product-trigger"
+                              onClick={() => setOpenIngredientMatchId((current) => (current === ingredient.id ? null : ingredient.id))}
+                            >
+                              {copy.dashboard.recipes.productLabel}:{' '}
+                              <span className="ingredient-product-trigger__value">{copy.dashboard.recipes.noMatchLabel}</span>
+                            </button>
+                          )}
                         </div>
-                        {!ingredient.product_id ? (
+                        {!ingredient.product_id && openIngredientMatchId === ingredient.id ? (
                           <div className="ingredient-match-controls">
                             <select
                               className="select"
@@ -1575,6 +1604,17 @@ function RecipeDetailDialog({
                 ) : null}
               </section>
             </div>
+          </div>
+
+          <div className="recipe-detail-footer">
+            <button
+              type="button"
+              className="button button--danger button--block"
+              onClick={handleDeleteRecipe}
+              disabled={deleteBusy}
+            >
+              {deleteBusy ? copy.common.loading : copy.dashboard.recipes.deleteButton}
+            </button>
           </div>
         </div>
       </section>

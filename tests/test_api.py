@@ -211,7 +211,7 @@ def test_recipe_import_job_and_shopping_list_flow(client: TestClient, monkeypatc
     sync_import = client.post("/recipes/import", headers=headers, json={"url": RECIPE_URL})
     assert sync_import.status_code == 200, sync_import.text
     recipe = sync_import.json()
-    assert recipe["name"] == "Rode-linzensoep met paprika-muntolie"
+    assert recipe["name"] == "Pannenkoeken"
 
     async_import = client.post("/recipes/import-jobs", headers=headers, json={"url": RECIPE_URL})
     assert async_import.status_code == 202, async_import.text

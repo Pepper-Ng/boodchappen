@@ -1,10 +1,12 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from backend.app.services import (
     aggregate_ingredients,
     format_shopping_line,
+    match_product_to_ingredient,
     parse_ah_product_html,
     parse_ah_recipe_html,
     parse_ingredient_text,
@@ -84,3 +86,27 @@ def test_validate_ah_url_rejects_non_ah_hosts():
 def test_format_shopping_line_omits_zero_quantity_defaults():
     assert format_shopping_line(0, "", "zout en peper") == "zout en peper"
     assert format_shopping_line(2, "stuk", "ui") == "2 stuk ui"
+
+
+def test_match_product_to_ingredient_rejects_loose_false_positives():
+    products = [
+        SimpleNamespace(normalized_title="mineraalwater", id=1),
+        SimpleNamespace(normalized_title="mix voor citroencake", id=2),
+        SimpleNamespace(normalized_title="verse citroen", id=3),
+        SimpleNamespace(normalized_title="gele uien", id=4),
+    ]
+
+    assert match_product_to_ingredient("water", products) is None
+    assert match_product_to_ingredient("citroen", products).id == 3
+    assert match_product_to_ingredient("ui", products).id == 4
+
+
+def test_match_product_to_ingredient_requires_specific_overlap_for_multi_word_titles():
+    products = [
+        SimpleNamespace(normalized_title="mix voor citroencake", id=1),
+        SimpleNamespace(normalized_title="verse citroen", id=2),
+        SimpleNamespace(normalized_title="terra biologisch rode linzen", id=3),
+    ]
+
+    assert match_product_to_ingredient("halve citroen", products).id == 2
+    assert match_product_to_ingredient("rode linzen", products).id == 3

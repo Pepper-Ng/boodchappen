@@ -491,15 +491,60 @@
   min-width: 0;
 }
 
+.ingredient-measurement {
+  color: var(--text-strong);
+}
+
 .ingredient-product-name {
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.ingredient-product-trigger {
+  width: fit-content;
+  justify-content: flex-start;
+  padding: 0;
+  color: var(--muted);
+  text-align: left;
+}
+
+.ingredient-product-trigger:hover,
+.ingredient-product-trigger:focus-visible {
+  color: var(--text-strong);
+}
+
+.ingredient-product-trigger__value {
+  color: var(--accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
 }
 
 .ingredient-match-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0.45rem;
+}
+
+.recipe-detail-footer {
+  margin-top: 0.3rem;
+}
+
+.button--danger {
+  color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--danger) 88%, #ffffff 12%), var(--danger));
+  border: 1px solid color-mix(in srgb, var(--danger) 68%, var(--border));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.button--danger:hover,
+.button--danger:focus-visible {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--danger) 96%, #ffffff 4%), color-mix(in srgb, var(--danger) 92%, #000000 8%));
+  border-color: color-mix(in srgb, var(--danger) 82%, var(--border));
+}
+
+.button--danger:disabled {
+  background: color-mix(in srgb, var(--danger) 55%, var(--surface));
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
 }
 
 .shopping-composer {
