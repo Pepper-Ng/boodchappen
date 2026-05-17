@@ -24,6 +24,7 @@ from .schemas import (
     GroceryListBuildIn,
     GroceryListCreateIn,
     GroceryListItemOut,
+    GroceryListRecipeAddIn,
     GroceryListItemUpdateIn,
     GroceryListOut,
     GroceryListSummaryOut,
@@ -44,6 +45,7 @@ from .schemas import (
 from .services import (
     choose_display_unit,
     convert_to_base_unit,
+    find_ah_product_url,
     import_ah_product,
     match_product_to_ingredient,
     normalize_product_title,
@@ -280,7 +282,7 @@ def upsert_imported_product(session: Session, owner_id: int, product_data: dict)
     return product
 
 
-def auto_match_recipe_ingredients(session: Session, owner_id: int, recipe_id: int) -> dict[str, int]:
+async def auto_match_recipe_ingredients(session: Session, owner_id: int, recipe_id: int) -> dict[str, int]:
     products = session.exec(select(Product).where(Product.owner_id == owner_id)).all()
     ingredients = session.exec(
         select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe_id)
@@ -291,6 +293,12 @@ def auto_match_recipe_ingredients(session: Session, owner_id: int, recipe_id: in
     for ingredient in ingredients:
         if not ingredient.product_id:
             matched_product = match_product_to_ingredient(ingredient.normalized_name, products)
+            if not matched_product:
+                candidate_url = await find_ah_product_url(ingredient.normalized_name or ingredient.name)
+                if candidate_url:
+                    product_data = await import_ah_product(candidate_url)
+                    matched_product = upsert_imported_product(session, owner_id, product_data)
+                    products.append(matched_product)
             ingredient.product_id = matched_product.id if matched_product else None
             session.add(ingredient)
         if ingredient.product_id:
@@ -302,7 +310,7 @@ def auto_match_recipe_ingredients(session: Session, owner_id: int, recipe_id: in
     return {"matched": matched, "unmatched": unmatched}
 
 
-def save_recipe_import(session: Session, owner_id: int, source_url: str, payload: dict) -> Recipe:
+async def save_recipe_import(session: Session, owner_id: int, source_url: str, payload: dict) -> Recipe:
     preserved_matches: dict[str, list[int]] = {}
     recipe = session.exec(
         select(Recipe).where(Recipe.owner_id == owner_id).where(Recipe.source_url == source_url)
@@ -363,7 +371,7 @@ def save_recipe_import(session: Session, owner_id: int, source_url: str, payload
             )
         )
     session.commit()
-    auto_match_recipe_ingredients(session, owner_id, recipe.id)
+    await auto_match_recipe_ingredients(session, owner_id, recipe.id)
     session.refresh(recipe)
     return recipe
 
@@ -382,7 +390,7 @@ async def process_recipe_import_job(job_id: str) -> None:
 
         try:
             payload = await scrape_ah_recipe(job.source_url)
-            recipe = save_recipe_import(session, job.owner_id, job.source_url, payload)
+            recipe = await save_recipe_import(session, job.owner_id, job.source_url, payload)
             job.status = "succeeded"
             job.recipe_id = recipe.id
             job.completed_at = datetime.utcnow()
@@ -457,6 +465,77 @@ def collect_recipe_sources_for_build(session: Session, user: User, payload: Groc
         recipe_sources.append((recipe, 1.0))
 
     return recipe_sources
+
+
+def add_recipe_to_named_shopping_list(
+    session: Session,
+    shopping_list: ShoppingList,
+    recipe: Recipe,
+    persons: int,
+) -> GroceryListOut:
+    if not recipe_has_full_product_matching(session, recipe.id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Fully match ingredients first for: {recipe.name}",
+        )
+
+    factor = persons / max(recipe.base_persons, 1)
+    existing_items = session.exec(
+        select(ShoppingListItem).where(ShoppingListItem.shopping_list_id == shopping_list.id)
+    ).all()
+
+    buckets: dict[tuple[int, str], dict] = {}
+    for item in existing_items:
+        base_quantity, base_unit = convert_to_base_unit(item.quantity, item.unit)
+        buckets[(item.product_id, base_unit)] = {
+            "item": item,
+            "base_quantity": base_quantity,
+            "recipes": {name for name in item.source_recipes.split("|") if name},
+        }
+
+    ingredients = session.exec(
+        select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe.id)
+    ).all()
+    for ingredient in ingredients:
+        if not ingredient.product_id:
+            continue
+
+        base_quantity, base_unit = convert_to_base_unit(ingredient.quantity * factor, ingredient.unit)
+        key = (ingredient.product_id, base_unit)
+        if key not in buckets:
+            buckets[key] = {
+                "item": None,
+                "base_quantity": 0.0,
+                "recipes": set(),
+            }
+
+        buckets[key]["base_quantity"] += base_quantity
+        buckets[key]["recipes"].add(recipe.name)
+
+    for (product_id, base_unit), item_data in buckets.items():
+        display_quantity, display_unit = choose_display_unit(item_data["base_quantity"], base_unit)
+        shopping_item = item_data["item"]
+        if shopping_item is None:
+            shopping_item = ShoppingListItem(
+                shopping_list_id=shopping_list.id,
+                product_id=product_id,
+                quantity=display_quantity,
+                unit=display_unit,
+                source_recipes="|".join(sorted(item_data["recipes"])),
+            )
+        else:
+            shopping_item.quantity = display_quantity
+            shopping_item.unit = display_unit
+            shopping_item.source_recipes = "|".join(sorted(item_data["recipes"]))
+            shopping_item.updated_at = datetime.utcnow()
+
+        session.add(shopping_item)
+
+    shopping_list.updated_at = datetime.utcnow()
+    session.add(shopping_list)
+    session.commit()
+    session.refresh(shopping_list)
+    return shopping_list_to_out(session, shopping_list)
 
 
 def build_named_shopping_list(session: Session, user: User, shopping_list: ShoppingList, payload: GroceryListBuildIn) -> GroceryListOut:
@@ -567,6 +646,18 @@ def build_named_shopping_list_endpoint(
     return build_named_shopping_list(session, user, shopping_list, payload)
 
 
+@app.post("/grocery-lists/{shopping_list_id}/recipes", response_model=GroceryListOut)
+def add_recipe_to_named_shopping_list_endpoint(
+    shopping_list_id: int,
+    payload: GroceryListRecipeAddIn,
+    session: Session = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    shopping_list = ensure_owned_shopping_list(session, user.id, shopping_list_id)
+    recipe = ensure_owned_recipe(session, user.id, payload.recipe_id)
+    return add_recipe_to_named_shopping_list(session, shopping_list, recipe, payload.persons)
+
+
 @app.patch("/grocery-lists/{shopping_list_id}/items/{item_id}", response_model=GroceryListOut)
 def update_named_shopping_list_item(
     shopping_list_id: int,
@@ -668,10 +759,37 @@ def get_recipe(recipe_id: int, session: Session = Depends(get_session), user: Us
     return recipe_to_out(session, recipe)
 
 
-@app.post("/recipes/{recipe_id}/auto-match", response_model=RecipeOut)
-def auto_match_recipe(recipe_id: int, session: Session = Depends(get_session), user: User = Depends(current_user)):
+@app.delete("/recipes/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_recipe(recipe_id: int, session: Session = Depends(get_session), user: User = Depends(current_user)):
     recipe = ensure_owned_recipe(session, user.id, recipe_id)
-    auto_match_recipe_ingredients(session, user.id, recipe.id)
+
+    week_plans = session.exec(
+        select(WeekPlan).where(WeekPlan.owner_id == user.id).where(WeekPlan.recipe_id == recipe.id)
+    ).all()
+    for week_plan in week_plans:
+        session.delete(week_plan)
+
+    ingredients = session.exec(
+        select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe.id)
+    ).all()
+    for ingredient in ingredients:
+        session.delete(ingredient)
+
+    jobs = session.exec(
+        select(ImportJob).where(ImportJob.owner_id == user.id).where(ImportJob.recipe_id == recipe.id)
+    ).all()
+    for job in jobs:
+        job.recipe_id = None
+        session.add(job)
+
+    session.delete(recipe)
+    session.commit()
+
+
+@app.post("/recipes/{recipe_id}/auto-match", response_model=RecipeOut)
+async def auto_match_recipe(recipe_id: int, session: Session = Depends(get_session), user: User = Depends(current_user)):
+    recipe = ensure_owned_recipe(session, user.id, recipe_id)
+    await auto_match_recipe_ingredients(session, user.id, recipe.id)
     session.refresh(recipe)
     return recipe_to_out(session, recipe)
 
@@ -711,7 +829,7 @@ async def import_recipe(
     user: User = Depends(current_user),
 ):
     recipe_payload = await scrape_ah_recipe(payload.url)
-    recipe = save_recipe_import(session, user.id, payload.url, recipe_payload)
+    recipe = await save_recipe_import(session, user.id, payload.url, recipe_payload)
     return recipe_to_out(session, recipe)
 
 

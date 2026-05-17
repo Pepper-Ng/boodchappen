@@ -161,6 +161,11 @@ class GroceryListBuildIn(BaseModel):
     recipe_ids: list[int] = Field(default_factory=list)
 
 
+class GroceryListRecipeAddIn(BaseModel):
+    recipe_id: int
+    persons: int = Field(default=1, ge=1)
+
+
 class GroceryListItemUpdateIn(BaseModel):
     quantity: Optional[float] = Field(default=None, ge=0)
     remove: bool = False

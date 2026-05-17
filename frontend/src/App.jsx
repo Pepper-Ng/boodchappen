@@ -3,12 +3,14 @@ import { createPortal } from 'react-dom';
 import en from './i18n/en.json';
 import nl from './i18n/nl.json';
 import {
+  addRecipeToGroceryList,
   ApiError,
   addWeekPlan,
   autoMatchRecipe,
   buildGroceryList,
   createGroceryList,
   createRecipeImportJob,
+  deleteRecipe,
   deleteWeekPlan,
   getGroceryList,
   importProduct,
@@ -977,10 +979,14 @@ function RecipeDetailDialog({
   recipe,
   locale,
   products,
+  groceryLists,
   onClose,
   onAddToWeek,
+  onAddToGroceryList,
+  onCreateGroceryList,
   onAutoMatchRecipe,
   onMatchIngredient,
+  onDeleteRecipe,
   returnFocusRef,
 }) {
   const dialogRef = useRef(null);
@@ -994,6 +1000,14 @@ function RecipeDetailDialog({
   const [matchingBusy, setMatchingBusy] = useState(false);
   const [matchingNotice, setMatchingNotice] = useState({ type: '', text: '' });
   const [matchDrafts, setMatchDrafts] = useState({});
+  const [listOverlayOpen, setListOverlayOpen] = useState(false);
+  const [listBusy, setListBusy] = useState(false);
+  const [listNotice, setListNotice] = useState({ type: '', text: '' });
+  const [listDraft, setListDraft] = useState(() => ({
+    selectedListId: groceryLists[0] ? String(groceryLists[0].id) : '',
+    newListName: '',
+  }));
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const titleId = `recipe-detail-title-${recipe.id}`;
   const leadId = `recipe-detail-lead-${recipe.id}`;
   const descriptionRegionId = `recipe-detail-description-${recipe.id}`;
@@ -1023,7 +1037,15 @@ function RecipeDetailDialog({
     setMatchingBusy(false);
     setMatchingNotice({ type: '', text: '' });
     setMatchDrafts({});
-  }, [recipe.id, recipe.base_persons]);
+    setListOverlayOpen(false);
+    setListBusy(false);
+    setListNotice({ type: '', text: '' });
+    setListDraft({
+      selectedListId: groceryLists[0] ? String(groceryLists[0].id) : '',
+      newListName: '',
+    });
+    setDeleteBusy(false);
+  }, [groceryLists, recipe.id, recipe.base_persons]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -1123,6 +1145,65 @@ function RecipeDetailDialog({
     }
   }
 
+  function updateListDraft(field, value) {
+    setListDraft((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  async function handleAddToList() {
+    const nextPersons = Math.max(1, Number(planDraft.persons) || 1);
+
+    if (!recipe.is_fully_matched) {
+      setListNotice({
+        type: 'danger',
+        text: copy.dashboard.recipes.matchRequired,
+      });
+      return;
+    }
+
+    const nextListName = listDraft.newListName.trim();
+    let targetListId = listDraft.selectedListId;
+    if (!targetListId && !nextListName) {
+      setListNotice({ type: 'warning', text: copy.dashboard.recipes.listChoiceRequired });
+      return;
+    }
+
+    setListBusy(true);
+    setListNotice({ type: '', text: '' });
+
+    try {
+      if (nextListName) {
+        const createdList = await onCreateGroceryList(nextListName);
+        targetListId = String(createdList.id);
+      }
+
+      await onAddToGroceryList(Number(targetListId), {
+        recipe_id: recipe.id,
+        persons: nextPersons,
+      });
+      setListDraft((current) => ({
+        ...current,
+        selectedListId: String(targetListId),
+        newListName: '',
+      }));
+      setListNotice({ type: 'success', text: copy.dashboard.recipes.addedToList });
+      setListOverlayOpen(false);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        return;
+      }
+
+      setListNotice({
+        type: 'danger',
+        text: error.message || copy.dashboard.recipes.addToListFailed,
+      });
+    } finally {
+      setListBusy(false);
+    }
+  }
+
   function updateMatchDraft(ingredientId, field, value) {
     setMatchDrafts((current) => ({
       ...current,
@@ -1177,6 +1258,29 @@ function RecipeDetailDialog({
     }
   }
 
+  async function handleDeleteRecipe() {
+    if (!window.confirm(copy.dashboard.recipes.deleteConfirm)) {
+      return;
+    }
+
+    setDeleteBusy(true);
+    try {
+      await onDeleteRecipe(recipe.id);
+      onClose();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        return;
+      }
+
+      setPlanningNotice({
+        type: 'danger',
+        text: error.message || copy.dashboard.recipes.deleteFailed,
+      });
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
   const dialog = (
     <div className="recipe-detail-overlay" onClick={onClose}>
       <section
@@ -1204,6 +1308,14 @@ function RecipeDetailDialog({
                   {copy.dashboard.recipes.openSource}
                 </a>
               ) : null}
+              <button
+                type="button"
+                className="button button--secondary"
+                onClick={handleDeleteRecipe}
+                disabled={deleteBusy}
+              >
+                {deleteBusy ? copy.common.loading : copy.dashboard.recipes.deleteButton}
+              </button>
               <button type="button" className="button button--ghost recipe-detail-close" onClick={onClose}>
                 {copy.common.close}
               </button>
@@ -1266,11 +1378,70 @@ function RecipeDetailDialog({
                       required
                     />
                   </Field>
-                  <button type="submit" className="button button--primary button--block" disabled={planningBusy}>
-                    {planningBusy ? copy.common.loading : copy.dashboard.week.button}
-                  </button>
+                  <div className="recipe-plan-actions">
+                    <button type="submit" className="button button--primary button--block" disabled={planningBusy}>
+                      {planningBusy ? copy.common.loading : copy.dashboard.week.button}
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--secondary button--block"
+                      onClick={() => {
+                        setListOverlayOpen((current) => !current);
+                        setListNotice({ type: '', text: '' });
+                      }}
+                      disabled={listBusy}
+                    >
+                      {copy.dashboard.recipes.addToListButton}
+                    </button>
+                  </div>
                 </form>
-                {!recipe.is_fully_matched ? <div className="alert alert--warning">{copy.dashboard.recipes.matchRequired}</div> : null}
+                {listOverlayOpen ? (
+                  <div className="recipe-list-overlay">
+                    <div className="section-title-group">
+                      <h4 className="panel-title">{copy.dashboard.recipes.listOverlayTitle}</h4>
+                      <p className="panel-copy">{copy.dashboard.recipes.listOverlayCopy}</p>
+                    </div>
+                    <NoticeBanner notice={listNotice} />
+                    {groceryLists.length ? (
+                      <Field id={`recipe-list-select-${recipe.id}`} label={copy.dashboard.recipes.listOverlaySelectLabel}>
+                        <select
+                          id={`recipe-list-select-${recipe.id}`}
+                          className="select"
+                          value={listDraft.selectedListId}
+                          onChange={(event) => updateListDraft('selectedListId', event.target.value)}
+                        >
+                          <option value="">{copy.dashboard.recipes.listOverlaySelectLabel}</option>
+                          {groceryLists.map((list) => (
+                            <option key={list.id} value={String(list.id)}>
+                              {list.name}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    ) : null}
+                    <Field
+                      id={`recipe-list-create-${recipe.id}`}
+                      label={copy.dashboard.recipes.listOverlayCreateLabel}
+                      optionalLabel={copy.common.optional}
+                    >
+                      <input
+                        id={`recipe-list-create-${recipe.id}`}
+                        className="control"
+                        value={listDraft.newListName}
+                        placeholder={copy.dashboard.recipes.listOverlayCreatePlaceholder}
+                        onChange={(event) => updateListDraft('newListName', event.target.value)}
+                      />
+                    </Field>
+                    <button
+                      type="button"
+                      className="button button--primary button--block"
+                      onClick={handleAddToList}
+                      disabled={listBusy}
+                    >
+                      {listBusy ? copy.common.loading : copy.dashboard.recipes.addToListConfirmButton}
+                    </button>
+                  </div>
+                ) : null}
               </section>
             </aside>
 
@@ -1554,8 +1725,11 @@ function RecipesSection({
   recipeImportState,
   onImportRecipe,
   onAddRecipeToWeek,
+  onAddRecipeToShoppingList,
+  onCreateShoppingList,
   onAutoMatchRecipe,
   onMatchIngredient,
+  onDeleteRecipe,
 }) {
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const detailTriggerRef = useRef(null);
@@ -1652,10 +1826,14 @@ function RecipesSection({
           recipe={selectedRecipe}
           locale={locale}
           products={workspace.products}
+          groceryLists={workspace.groceryLists}
           onClose={() => setSelectedRecipeId(null)}
           onAddToWeek={onAddRecipeToWeek}
+          onAddToGroceryList={onAddRecipeToShoppingList}
+          onCreateGroceryList={onCreateShoppingList}
           onAutoMatchRecipe={onAutoMatchRecipe}
           onMatchIngredient={onMatchIngredient}
+          onDeleteRecipe={onDeleteRecipe}
           returnFocusRef={detailTriggerRef}
         />
       ) : null}
@@ -2350,8 +2528,11 @@ function DashboardScreen({
   recipeImportState,
   onImportRecipe,
   onAddRecipeToWeek,
+  onAddRecipeToShoppingList,
+  onCreateShoppingList,
   onAutoMatchRecipe,
   onMatchIngredient,
+  onDeleteRecipe,
   productUrl,
   onProductUrlChange,
   productImportState,
@@ -2361,7 +2542,6 @@ function DashboardScreen({
   onAddWeekPlan,
   onRemoveWeekPlan,
   shoppingState,
-  onCreateShoppingList,
   onSelectShoppingList,
   onBuildShoppingList,
   onUpdateShoppingListItem,
@@ -2422,8 +2602,11 @@ function DashboardScreen({
         recipeImportState={recipeImportState}
         onImportRecipe={onImportRecipe}
         onAddRecipeToWeek={onAddRecipeToWeek}
+        onAddRecipeToShoppingList={onAddRecipeToShoppingList}
+        onCreateShoppingList={onCreateShoppingList}
         onAutoMatchRecipe={onAutoMatchRecipe}
         onMatchIngredient={onMatchIngredient}
+        onDeleteRecipe={onDeleteRecipe}
       />
     );
   } else if (activeSection === 'products') {
@@ -2629,10 +2812,13 @@ function App() {
       return false;
     }
 
+    const firstMatchedRecipe = recipes.find((recipe) => recipe.is_fully_matched);
     setWorkspace({ recipes, products, weekPlan, jobs, groceryLists, activeGroceryList });
     setWeekDraft((current) => ({
       ...current,
-      recipeId: current.recipeId || (recipes.find((recipe) => recipe.is_fully_matched) ? String(recipes.find((recipe) => recipe.is_fully_matched).id) : ''),
+      recipeId: recipes.some((recipe) => String(recipe.id) === String(current.recipeId || ''))
+        ? current.recipeId
+        : (firstMatchedRecipe ? String(firstMatchedRecipe.id) : ''),
     }));
     setDashboardNotice({ type: '', text: '' });
     return true;
@@ -2968,11 +3154,30 @@ function App() {
         listGroceryLists(session.token),
         getGroceryList(session.token, created.id),
       ]);
+      activeGroceryListIdRef.current = created.id;
       setWorkspace((current) => ({ ...current, groceryLists, activeGroceryList }));
       setShoppingState({ status: 'succeeded', text: copy.dashboard.shopping.createListButton });
+      return created;
     } catch (error) {
       setShoppingState({ status: 'failed', text: error.message || copy.dashboard.shopping.createListButton });
       setDashboardNotice({ type: 'danger', text: error.message || copy.dashboard.shopping.createListButton });
+      throw error;
+    }
+  }
+
+  async function onAddRecipeToShoppingList(listId, payload) {
+    setShoppingState({ status: 'running', text: copy.common.loading });
+    try {
+      const activeGroceryList = await addRecipeToGroceryList(session.token, listId, payload);
+      const groceryLists = await listGroceryLists(session.token);
+      activeGroceryListIdRef.current = listId;
+      setWorkspace((current) => ({ ...current, groceryLists, activeGroceryList }));
+      setShoppingState({ status: 'succeeded', text: copy.dashboard.recipes.addedToList });
+      return activeGroceryList;
+    } catch (error) {
+      setShoppingState({ status: 'failed', text: error.message || copy.dashboard.recipes.addToListFailed });
+      setDashboardNotice({ type: 'danger', text: error.message || copy.dashboard.recipes.addToListFailed });
+      throw error;
     }
   }
 
@@ -3007,6 +3212,17 @@ function App() {
       setWorkspace((current) => ({ ...current, groceryLists, activeGroceryList }));
     } catch (error) {
       setDashboardNotice({ type: 'danger', text: error.message || copy.dashboard.shopping.refreshButton });
+      throw error;
+    }
+  }
+
+  async function onDeleteRecipe(recipeId) {
+    try {
+      await deleteRecipe(session.token, recipeId);
+      await refreshWorkspace(session.token);
+      setDashboardNotice({ type: 'success', text: copy.dashboard.recipes.deleteSucceeded });
+    } catch (error) {
+      setDashboardNotice({ type: 'danger', text: error.message || copy.dashboard.recipes.deleteFailed });
       throw error;
     }
   }
@@ -3154,8 +3370,11 @@ function App() {
         recipeImportState={recipeImportState}
         onImportRecipe={onImportRecipe}
         onAddRecipeToWeek={onAddRecipeToWeek}
+        onAddRecipeToShoppingList={onAddRecipeToShoppingList}
+        onCreateShoppingList={onCreateShoppingList}
         onAutoMatchRecipe={onAutoMatchRecipe}
         onMatchIngredient={onMatchIngredient}
+        onDeleteRecipe={onDeleteRecipe}
         productUrl={productUrl}
         onProductUrlChange={setProductUrl}
         productImportState={productImportState}
@@ -3165,7 +3384,6 @@ function App() {
         onAddWeekPlan={onAddWeekPlan}
         onRemoveWeekPlan={onRemoveWeekPlan}
         shoppingState={shoppingState}
-        onCreateShoppingList={onCreateShoppingList}
         onSelectShoppingList={onSelectShoppingList}
         onBuildShoppingList={onBuildShoppingList}
         onUpdateShoppingListItem={onUpdateShoppingListItem}

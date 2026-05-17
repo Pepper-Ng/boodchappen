@@ -146,6 +146,13 @@ export function getRecipe(token, recipeId) {
   return request(`/recipes/${recipeId}`, { token });
 }
 
+export function deleteRecipe(token, recipeId) {
+  return request(`/recipes/${recipeId}`, {
+    token,
+    method: 'DELETE',
+  });
+}
+
 export function importRecipe(token, url) {
   return request('/recipes/import', {
     token,
@@ -241,6 +248,14 @@ export function getGroceryList(token, listId) {
 
 export function buildGroceryList(token, listId, payload) {
   return request(`/grocery-lists/${listId}/build`, {
+    token,
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export function addRecipeToGroceryList(token, listId, payload) {
+  return request(`/grocery-lists/${listId}/recipes`, {
     token,
     method: 'POST',
     body: payload,

@@ -423,6 +423,43 @@ def parse_ah_recipe_html(html: str, url: str) -> dict[str, Any]:
     }
 
 
+def parse_ah_product_search_results(html: str) -> list[dict[str, str]]:
+    soup = BeautifulSoup(html, "html.parser")
+    results: list[dict[str, str]] = []
+    seen_urls: set[str] = set()
+
+    for link in soup.select("a[href*='/producten/product/']"):
+        href = normalize_space(str(link.get("href", "")))
+        if not href:
+            continue
+
+        url = href if href.startswith("http") else f"https://www.ah.nl{href}"
+        try:
+            url = validate_ah_url(url)
+        except ValueError:
+            continue
+
+        if url in seen_urls:
+            continue
+
+        seen_urls.add(url)
+        title = normalize_space(str(link.get("aria-label", "")))
+        if title:
+            title = title.split(",", 1)[0]
+
+        if not title:
+            title_node = link.find_next("p")
+            if title_node:
+                title = normalize_space(title_node.get_text(" ", strip=True))
+
+        results.append({
+            "url": url,
+            "title": clean_ah_title(title) if title else "",
+        })
+
+    return results
+
+
 async def fetch_ah_html(url: str) -> str:
     current_url = validate_ah_url(url)
 
@@ -447,6 +484,25 @@ async def import_ah_product(url: str) -> dict[str, Any]:
 
 async def scrape_ah_recipe(url: str) -> dict[str, Any]:
     return parse_ah_recipe_html(await fetch_ah_html(url), url)
+
+
+async def find_ah_product_url(query: str) -> str | None:
+    normalized_query = normalize_ingredient_name(query)
+    search_html = await fetch_ah_html(build_ah_search_url(normalized_query or query))
+    candidates = parse_ah_product_search_results(search_html)
+    if not candidates:
+        return None
+
+    query_tokens = {token for token in normalized_query.split() if token}
+    if query_tokens:
+        for candidate in candidates:
+            normalized_title = normalize_product_title(candidate["title"])
+            title_tokens = {token for token in normalized_title.split() if token}
+            overlap = query_tokens & title_tokens
+            if normalized_query == normalized_title or normalized_query in normalized_title or overlap:
+                return candidate["url"]
+
+    return candidates[0]["url"]
 
 
 def convert_to_base_unit(quantity: float, unit: str) -> tuple[float, str]:

@@ -581,6 +581,24 @@
   gap: 0.7rem;
 }
 
+.recipe-plan-actions {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.recipe-list-overlay {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.75rem;
+  border-radius: 0.95rem;
+  border: 1px solid var(--border);
+  background: var(--surface-tint);
+}
+
+.recipe-list-overlay .field {
+  margin: 0;
+}
+
 @media (min-width: 781px) {
   .content-grid--products {
     grid-template-columns: minmax(280px, 0.74fr) minmax(0, 1.26fr);
