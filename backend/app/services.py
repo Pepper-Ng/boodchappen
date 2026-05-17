@@ -342,6 +342,34 @@ def candidate_has_discouraged_extra_tokens(query: str, candidate_title: str) -> 
     return bool(extra_tokens & MATCH_DISCOURAGED_EXTRA_PRODUCT_TOKENS)
 
 
+def product_match_score(query: str, normalized_title: str) -> tuple[int, float, float, int, int, int] | None:
+    normalized_query = normalize_ingredient_name(query)
+    query_tokens = tokenize_matching_text(normalized_query)
+    if not query_tokens:
+        return None
+
+    title_tokens = tokenize_matching_text(normalized_title, drop_product_stopwords=True)
+    score = score_token_overlap(query_tokens, title_tokens)
+    if not score:
+        return None
+
+    exact_match = int(
+        normalize_ingredient_name(normalized_title) == normalized_query
+        and not candidate_has_discouraged_extra_tokens(query, normalized_title)
+    )
+    return (exact_match, *score)
+
+
+def is_better_product_match(query: str, current_normalized_title: str, candidate_normalized_title: str) -> bool:
+    current_score = product_match_score(query, current_normalized_title)
+    candidate_score = product_match_score(query, candidate_normalized_title)
+    if candidate_score is None:
+        return False
+    if current_score is None:
+        return True
+    return candidate_score > current_score
+
+
 def select_best_candidate(query: str, candidates: list[dict[str, str]]) -> dict[str, str] | None:
     normalized_query = normalize_ingredient_name(query)
     query_tokens = tokenize_matching_text(normalized_query)
@@ -351,23 +379,16 @@ def select_best_candidate(query: str, candidates: list[dict[str, str]]) -> dict[
     scored_candidates: list[tuple[float, float, int, int, int, dict[str, str]]] = []
     for candidate in candidates:
         normalized_title = normalize_product_title(candidate["title"])
-        title_tokens = tokenize_matching_text(normalized_title, drop_product_stopwords=True)
-        if normalize_ingredient_name(normalized_title) == normalized_query and not candidate_has_discouraged_extra_tokens(
-            query,
-            normalized_title,
-        ):
-            return candidate
-
-        score = score_token_overlap(query_tokens, title_tokens)
+        score = product_match_score(query, normalized_title)
         if score:
             scored_candidates.append((*score, candidate))
 
     if not scored_candidates:
         return None
 
-    scored_candidates.sort(key=lambda item: (item[0], item[1], item[2], item[3], item[4]), reverse=True)
-    best_ratio, best_product_ratio, best_overlap, _, _, best_candidate = scored_candidates[0]
-    if (best_ratio >= 1.0 and (best_product_ratio >= 0.5 or len(query_tokens) == 1)) or best_overlap >= 2:
+    scored_candidates.sort(key=lambda item: item[:-1], reverse=True)
+    best_exact, best_ratio, best_product_ratio, best_overlap, _, _, best_candidate = scored_candidates[0]
+    if best_exact or (best_ratio >= 1.0 and (best_product_ratio >= 0.5 or len(query_tokens) == 1)) or best_overlap >= 2:
         return best_candidate
     return None
 
@@ -765,26 +786,18 @@ def match_product_to_ingredient(normalized_name: str, products: list[Any]):
 
     ingredient_tokens = tokenize_matching_text(normalized_name)
 
-    for product in products:
-        if getattr(product, "normalized_title", "") == normalized_name:
-            return product
-
     if ingredient_tokens:
-        scored_products: list[tuple[float, float, int, int, int, Any]] = []
+        scored_products: list[tuple[int, float, float, int, int, int, Any]] = []
         for product in products:
             normalized_title = getattr(product, "normalized_title", "")
-            product_tokens = tokenize_matching_text(normalized_title, drop_product_stopwords=True)
-            if not product_tokens:
-                continue
-
-            score = score_token_overlap(ingredient_tokens, product_tokens)
+            score = product_match_score(normalized_name, normalized_title)
             if score:
                 scored_products.append((*score, product))
 
         if scored_products:
-            scored_products.sort(key=lambda item: (item[0], item[1], item[2], item[3], item[4]), reverse=True)
-            best_ratio, best_product_ratio, best_overlap, _, _, best_product = scored_products[0]
-            if (best_ratio >= 1.0 and (best_product_ratio >= 0.5 or len(ingredient_tokens) == 1)) or best_overlap >= 2:
+            scored_products.sort(key=lambda item: item[:-1], reverse=True)
+            best_exact, best_ratio, best_product_ratio, best_overlap, _, _, best_product = scored_products[0]
+            if best_exact or (best_ratio >= 1.0 and (best_product_ratio >= 0.5 or len(ingredient_tokens) == 1)) or best_overlap >= 2:
                 return best_product
 
     return None

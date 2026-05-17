@@ -9,6 +9,7 @@ from backend.app.services import (
     aggregate_ingredients,
     format_shopping_line,
     find_ah_product_url,
+    is_better_product_match,
     match_product_to_ingredient,
     parse_ah_product_html,
     parse_ah_recipe_html,
@@ -224,3 +225,12 @@ def test_find_ah_product_url_uses_normalized_query_when_original_result_is_proce
     selected = asyncio.run(find_ah_product_url("witte bonen in blik"))
 
     assert selected == "https://www.ah.nl/producten/product/wi9837917/ah-terra-witte-bonen"
+
+
+def test_is_better_product_match_prefers_less_processed_candidates():
+    assert is_better_product_match("middelgrote uien", "ah gesneden uien", "ah gele uien") is True
+    assert is_better_product_match(
+        "witte bonen in blik",
+        "hak gesneden bonen met witte bonen",
+        "ah terra witte bonen",
+    ) is True

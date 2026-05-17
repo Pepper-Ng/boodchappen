@@ -47,6 +47,7 @@ from .services import (
     convert_to_base_unit,
     find_ah_product_url,
     import_ah_product,
+    is_better_product_match,
     is_pantry_ingredient,
     match_product_to_ingredient,
     normalize_product_title,
@@ -315,34 +316,37 @@ async def auto_match_recipe_ingredients(
     matched = 0
     unmatched = 0
     for ingredient in ingredients:
-        if rematch_existing and ingredient.product_id and ingredient_can_auto_match(ingredient):
-            current_product = products_by_id.get(ingredient.product_id)
-            if current_product and not match_product_to_ingredient(ingredient.normalized_name, [current_product]):
+        matched_product = None
+        search_query = ingredient.name or ingredient.normalized_name or ingredient.raw_text
+        search_product = None
+
+        if ingredient_can_auto_match(ingredient):
+            candidate_url = await find_ah_product_url(search_query)
+            if candidate_url:
+                product_data = await import_ah_product(candidate_url)
+                search_product = upsert_imported_product(session, owner_id, product_data)
+                products.append(search_product)
+                products_by_id[search_product.id] = search_product
+
+        current_product = products_by_id.get(ingredient.product_id) if ingredient.product_id else None
+        if current_product and search_product and is_better_product_match(
+            search_query,
+            current_product.normalized_title,
+            search_product.normalized_title,
+        ):
+            ingredient.product_id = search_product.id
+            current_product = search_product
+
+        if rematch_existing and current_product and ingredient_can_auto_match(ingredient):
+            if not match_product_to_ingredient(ingredient.normalized_name, [current_product]):
                 ingredient.product_id = None
+                current_product = None
 
         if ingredient_can_auto_match(ingredient) and not ingredient.product_id:
-            matched_product = None
-            search_query = ingredient.name or ingredient.normalized_name or ingredient.raw_text
-
-            if rematch_existing:
-                candidate_url = await find_ah_product_url(search_query)
-                if candidate_url:
-                    product_data = await import_ah_product(candidate_url)
-                    matched_product = upsert_imported_product(session, owner_id, product_data)
-                    products.append(matched_product)
-                    products_by_id[matched_product.id] = matched_product
-
-            if not matched_product:
-                matched_product = match_product_to_ingredient(ingredient.normalized_name, products)
-
-            if not matched_product:
-                candidate_url = await find_ah_product_url(search_query)
-                if candidate_url:
-                    product_data = await import_ah_product(candidate_url)
-                    matched_product = upsert_imported_product(session, owner_id, product_data)
-                    products.append(matched_product)
-                    products_by_id[matched_product.id] = matched_product
+            matched_product = search_product or match_product_to_ingredient(ingredient.normalized_name, products)
             ingredient.product_id = matched_product.id if matched_product else None
+            session.add(ingredient)
+        elif ingredient.product_id and search_product and ingredient.product_id == search_product.id:
             session.add(ingredient)
         if ingredient_requires_product(ingredient):
             if ingredient.product_id:
