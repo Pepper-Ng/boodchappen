@@ -81,6 +81,14 @@ MATCH_DISALLOWED_PRODUCT_TOKENS = {
     "hoemoes",
 }
 
+MATCH_DISCOURAGED_EXTRA_PRODUCT_TOKENS = {
+    "gesneden",
+    "gesnipperd",
+    "gesnipperde",
+    "snippers",
+    "uiensnippers",
+}
+
 INGREDIENT_DESCRIPTOR_TOKENS = {
     "ca",
     "ongeveer",
@@ -110,15 +118,29 @@ PANTRY_INGREDIENTS = {
     "peper",
 }
 
+ALWAYS_UNMATCHED_INGREDIENTS = {
+    "water",
+    "kraanwater",
+}
+
 INGREDIENT_PHRASE_NORMALIZATIONS = {
+    "chilivlokken": "chili vlokken",
+    "chilivlokken": "chili vlokken",
     "groentebouillonblokje": "groente bouillon",
     "groentebouillonblokjes": "groente bouillon",
+    "korianderzaad": "koriander",
+    "oude kaas 48": "oud kaas 48",
+    "oude kaas 48+": "oud kaas 48",
     "parmigiano reggiano": "parmezaan",
     "parmezaanse kaas": "parmezaan",
     "risottorijst": "risotto rijst",
+    "tomatenblokjes in blik": "tomatenblokjes",
+    "tortillawraps": "tortilla wraps",
+    "witte bonen in blik": "witte bonen",
 }
 
 MATCH_TOKEN_SYNONYMS = {
+    "oude": "oud",
     "parmigiano": "parmezaan",
     "parmezaan": "parmezaan",
     "parmezaanse": "parmezaan",
@@ -271,6 +293,8 @@ def normalize_ingredient_name(name: str) -> str:
         prefix = [word for word in words[:-1] if word not in {"middelgrote", "grote", "kleine"}]
         if prefix and prefix[-1] in {"rode", "gele", "witte", "bos"}:
             return " ".join(prefix + ["ui"])
+        if prefix and prefix[-1] in MATCH_DISCOURAGED_EXTRA_PRODUCT_TOKENS:
+            return " ".join(prefix + ["ui"])
         return "ui"
 
     if words[-1] == "aardappelen":
@@ -307,7 +331,15 @@ def score_token_overlap(query_tokens: set[str], candidate_tokens: set[str]) -> t
     overlap_count = len(overlap)
     ingredient_ratio = overlap_count / max(len(query_tokens), 1)
     product_ratio = overlap_count / max(len(candidate_tokens), 1)
-    return ingredient_ratio, product_ratio, overlap_count, -len(extra_tokens)
+    discouraged_extra_count = len(extra_tokens & MATCH_DISCOURAGED_EXTRA_PRODUCT_TOKENS)
+    return ingredient_ratio, product_ratio, overlap_count, -discouraged_extra_count, -len(extra_tokens)
+
+
+def candidate_has_discouraged_extra_tokens(query: str, candidate_title: str) -> bool:
+    query_tokens = tokenize_matching_text(query)
+    candidate_tokens = tokenize_matching_text(candidate_title, drop_product_stopwords=True)
+    extra_tokens = candidate_tokens - query_tokens
+    return bool(extra_tokens & MATCH_DISCOURAGED_EXTRA_PRODUCT_TOKENS)
 
 
 def select_best_candidate(query: str, candidates: list[dict[str, str]]) -> dict[str, str] | None:
@@ -316,11 +348,14 @@ def select_best_candidate(query: str, candidates: list[dict[str, str]]) -> dict[
     if not query_tokens:
         return candidates[0] if candidates else None
 
-    scored_candidates: list[tuple[float, float, int, int, dict[str, str]]] = []
+    scored_candidates: list[tuple[float, float, int, int, int, dict[str, str]]] = []
     for candidate in candidates:
         normalized_title = normalize_product_title(candidate["title"])
         title_tokens = tokenize_matching_text(normalized_title, drop_product_stopwords=True)
-        if normalize_ingredient_name(normalized_title) == normalized_query:
+        if normalize_ingredient_name(normalized_title) == normalized_query and not candidate_has_discouraged_extra_tokens(
+            query,
+            normalized_title,
+        ):
             return candidate
 
         score = score_token_overlap(query_tokens, title_tokens)
@@ -330,8 +365,8 @@ def select_best_candidate(query: str, candidates: list[dict[str, str]]) -> dict[
     if not scored_candidates:
         return None
 
-    scored_candidates.sort(key=lambda item: (item[0], item[1], item[2], item[3]), reverse=True)
-    best_ratio, best_product_ratio, best_overlap, _, best_candidate = scored_candidates[0]
+    scored_candidates.sort(key=lambda item: (item[0], item[1], item[2], item[3], item[4]), reverse=True)
+    best_ratio, best_product_ratio, best_overlap, _, _, best_candidate = scored_candidates[0]
     if (best_ratio >= 1.0 and (best_product_ratio >= 0.5 or len(query_tokens) == 1)) or best_overlap >= 2:
         return best_candidate
     return None
@@ -339,6 +374,10 @@ def select_best_candidate(query: str, candidates: list[dict[str, str]]) -> dict[
 
 def is_pantry_ingredient(normalized_name: str) -> bool:
     return normalized_name in PANTRY_INGREDIENTS
+
+
+def should_skip_product_matching(normalized_name: str) -> bool:
+    return normalized_name in ALWAYS_UNMATCHED_INGREDIENTS
 
 
 def parse_ingredient_text(raw_text: str) -> dict[str, Any]:
@@ -616,7 +655,7 @@ async def scrape_ah_recipe(url: str) -> dict[str, Any]:
 
 async def find_ah_product_url(query: str) -> str | None:
     normalized_query = normalize_ingredient_name(query)
-    if is_pantry_ingredient(normalized_query):
+    if should_skip_product_matching(normalized_query):
         return None
 
     search_queries: list[str] = []
@@ -626,14 +665,22 @@ async def find_ah_product_url(query: str) -> str | None:
     if normalized_query and normalized_query not in {item.lower() for item in search_queries}:
         search_queries.append(normalized_query)
 
-    for search_query in search_queries:
+    fallback_candidate: dict[str, str] | None = None
+    for index, search_query in enumerate(search_queries):
         search_html = await fetch_ah_html(build_ah_search_url(search_query))
         candidates = parse_ah_product_search_results(search_html)
         best_candidate = select_best_candidate(query, candidates)
+        if not best_candidate:
+            continue
+
+        if candidate_has_discouraged_extra_tokens(query, best_candidate["title"]) and index < len(search_queries) - 1:
+            fallback_candidate = best_candidate
+            continue
+
         if best_candidate:
             return best_candidate["url"]
 
-    return None
+    return fallback_candidate["url"] if fallback_candidate else None
 
 
 def convert_to_base_unit(quantity: float, unit: str) -> tuple[float, str]:
@@ -713,7 +760,7 @@ def build_ah_search_url(query: str) -> str:
 
 
 def match_product_to_ingredient(normalized_name: str, products: list[Any]):
-    if is_pantry_ingredient(normalized_name):
+    if should_skip_product_matching(normalized_name):
         return None
 
     ingredient_tokens = tokenize_matching_text(normalized_name)
@@ -723,7 +770,7 @@ def match_product_to_ingredient(normalized_name: str, products: list[Any]):
             return product
 
     if ingredient_tokens:
-        scored_products: list[tuple[float, float, int, int, Any]] = []
+        scored_products: list[tuple[float, float, int, int, int, Any]] = []
         for product in products:
             normalized_title = getattr(product, "normalized_title", "")
             product_tokens = tokenize_matching_text(normalized_title, drop_product_stopwords=True)
@@ -735,8 +782,8 @@ def match_product_to_ingredient(normalized_name: str, products: list[Any]):
                 scored_products.append((*score, product))
 
         if scored_products:
-            scored_products.sort(key=lambda item: (item[0], item[1], item[2], item[3]), reverse=True)
-            best_ratio, best_product_ratio, best_overlap, _, best_product = scored_products[0]
+            scored_products.sort(key=lambda item: (item[0], item[1], item[2], item[3], item[4]), reverse=True)
+            best_ratio, best_product_ratio, best_overlap, _, _, best_product = scored_products[0]
             if (best_ratio >= 1.0 and (best_product_ratio >= 0.5 or len(ingredient_tokens) == 1)) or best_overlap >= 2:
                 return best_product
 

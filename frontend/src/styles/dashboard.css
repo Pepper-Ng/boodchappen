@@ -550,6 +550,15 @@
   color: var(--text-strong);
 }
 
+.recipe-list-basics-options {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.recipe-list-basics-note .checkbox-row {
+  align-items: flex-start;
+}
+
 .recipe-list-basics-note .button {
   width: auto;
   justify-self: start;

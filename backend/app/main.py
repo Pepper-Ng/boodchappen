@@ -51,6 +51,7 @@ from .services import (
     match_product_to_ingredient,
     normalize_product_title,
     scrape_ah_recipe,
+    should_skip_product_matching,
 )
 
 
@@ -240,6 +241,10 @@ def ingredient_requires_product(ingredient: RecipeIngredient) -> bool:
     return not is_pantry_ingredient(ingredient.normalized_name)
 
 
+def ingredient_can_auto_match(ingredient: RecipeIngredient) -> bool:
+    return not should_skip_product_matching(ingredient.normalized_name)
+
+
 def recipe_matching_counts(ingredients: list[RecipeIngredient]) -> tuple[int, int]:
     relevant_ingredients = [ingredient for ingredient in ingredients if ingredient_requires_product(ingredient)]
     matched_ingredients = sum(1 for ingredient in relevant_ingredients if ingredient.product_id)
@@ -310,12 +315,12 @@ async def auto_match_recipe_ingredients(
     matched = 0
     unmatched = 0
     for ingredient in ingredients:
-        if rematch_existing and ingredient.product_id and ingredient_requires_product(ingredient):
+        if rematch_existing and ingredient.product_id and ingredient_can_auto_match(ingredient):
             current_product = products_by_id.get(ingredient.product_id)
             if current_product and not match_product_to_ingredient(ingredient.normalized_name, [current_product]):
                 ingredient.product_id = None
 
-        if ingredient_requires_product(ingredient) and not ingredient.product_id:
+        if ingredient_can_auto_match(ingredient) and not ingredient.product_id:
             matched_product = None
             search_query = ingredient.name or ingredient.normalized_name or ingredient.raw_text
 
@@ -511,6 +516,7 @@ def add_recipe_to_named_shopping_list(
     shopping_list: ShoppingList,
     recipe: Recipe,
     persons: int,
+    include_pantry_product_ids: set[int] | None = None,
 ) -> GroceryListOut:
     if not recipe_has_full_product_matching(session, recipe.id):
         raise HTTPException(
@@ -519,6 +525,7 @@ def add_recipe_to_named_shopping_list(
         )
 
     factor = persons / max(recipe.base_persons, 1)
+    included_pantry_products = include_pantry_product_ids or set()
     existing_items = session.exec(
         select(ShoppingListItem).where(ShoppingListItem.shopping_list_id == shopping_list.id)
     ).all()
@@ -536,7 +543,10 @@ def add_recipe_to_named_shopping_list(
         select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe.id)
     ).all()
     for ingredient in ingredients:
-        if not ingredient_requires_product(ingredient) or not ingredient.product_id:
+        if not ingredient.product_id:
+            continue
+
+        if not ingredient_requires_product(ingredient) and ingredient.product_id not in included_pantry_products:
             continue
 
         base_quantity, base_unit = convert_to_base_unit(ingredient.quantity * factor, ingredient.unit)
@@ -579,6 +589,7 @@ def add_recipe_to_named_shopping_list(
 
 def build_named_shopping_list(session: Session, user: User, shopping_list: ShoppingList, payload: GroceryListBuildIn) -> GroceryListOut:
     recipe_sources = collect_recipe_sources_for_build(session, user, payload)
+    included_pantry_products = set(payload.include_pantry_product_ids)
     if not recipe_sources:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No recipes selected for shopping list")
 
@@ -599,7 +610,10 @@ def build_named_shopping_list(session: Session, user: User, shopping_list: Shopp
             select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe.id)
         ).all()
         for ingredient in ingredients:
-            if not ingredient_requires_product(ingredient) or not ingredient.product_id:
+            if not ingredient.product_id:
+                continue
+
+            if not ingredient_requires_product(ingredient) and ingredient.product_id not in included_pantry_products:
                 continue
 
             quantity = ingredient.quantity * factor
@@ -694,7 +708,13 @@ def add_recipe_to_named_shopping_list_endpoint(
 ):
     shopping_list = ensure_owned_shopping_list(session, user.id, shopping_list_id)
     recipe = ensure_owned_recipe(session, user.id, payload.recipe_id)
-    return add_recipe_to_named_shopping_list(session, shopping_list, recipe, payload.persons)
+    return add_recipe_to_named_shopping_list(
+        session,
+        shopping_list,
+        recipe,
+        payload.persons,
+        include_pantry_product_ids=set(payload.include_pantry_product_ids),
+    )
 
 
 @app.patch("/grocery-lists/{shopping_list_id}/items/{item_id}", response_model=GroceryListOut)

@@ -160,11 +160,13 @@ class GroceryListCreateIn(BaseModel):
 class GroceryListBuildIn(BaseModel):
     include_weekplan: bool = True
     recipe_ids: list[int] = Field(default_factory=list)
+    include_pantry_product_ids: list[int] = Field(default_factory=list)
 
 
 class GroceryListRecipeAddIn(BaseModel):
     recipe_id: int
     persons: int = Field(default=1, ge=1)
+    include_pantry_product_ids: list[int] = Field(default_factory=list)
 
 
 class GroceryListItemUpdateIn(BaseModel):

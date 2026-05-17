@@ -319,11 +319,25 @@ def test_pantry_ingredients_do_not_block_weekplan_or_grocery_list(client: TestCl
 
     async def fake_find_product(query: str) -> str | None:
         search_queries.append(query)
+        if query == "milde olijfolie":
+            return "https://www.ah.nl/producten/product/wi54443/ah-olijfolie-mild"
         if query == "biologische citroen":
             return "https://www.ah.nl/producten/product/wi230708/ah-citroen"
         return None
 
-    async def fake_import_product(_: str) -> dict:
+    async def fake_import_product(url: str) -> dict:
+        if url.endswith("/wi54443/ah-olijfolie-mild"):
+            return {
+                "ah_id": "wi54443",
+                "source_url": url,
+                "title": "AH Olijfolie mild",
+                "normalized_title": "ah olijfolie mild",
+                "image": "",
+                "price": 6.49,
+                "unit": "500 ml",
+                "description": "Olijfolie",
+            }
+
         return {
             "ah_id": "wi230708",
             "source_url": "https://www.ah.nl/producten/product/wi230708/ah-citroen",
@@ -345,11 +359,12 @@ def test_pantry_ingredients_do_not_block_weekplan_or_grocery_list(client: TestCl
     assert recipe["is_fully_matched"] is True
     assert recipe["matched_ingredients"] == 1
     assert recipe["total_ingredients"] == 1
-    assert search_queries == ["biologische citroen"]
+    assert search_queries == ["milde olijfolie", "biologische citroen"]
 
     ingredients_by_name = {item["name"]: item for item in recipe["ingredients"]}
     assert ingredients_by_name["water"]["requires_product"] is False
     assert ingredients_by_name["milde olijfolie"]["requires_product"] is False
+    assert ingredients_by_name["milde olijfolie"]["product_title"] == "AH Olijfolie mild"
     assert ingredients_by_name["biologische citroen"]["requires_product"] is True
 
     week_plan_response = client.post(
@@ -372,6 +387,23 @@ def test_pantry_ingredients_do_not_block_weekplan_or_grocery_list(client: TestCl
     added_items = add_recipe_response.json()["items"]
     assert len(added_items) == 1
     assert added_items[0]["product_title"] == "AH Citroen"
+
+    pantry_list_response = client.post("/grocery-lists", headers=headers, json={"name": "Pantry include test"})
+    assert pantry_list_response.status_code == 200, pantry_list_response.text
+    pantry_list_id = pantry_list_response.json()["id"]
+
+    add_with_pantry_response = client.post(
+        f"/grocery-lists/{pantry_list_id}/recipes",
+        headers=headers,
+        json={
+            "recipe_id": recipe["id"],
+            "persons": 2,
+            "include_pantry_product_ids": [ingredients_by_name["milde olijfolie"]["product_id"]],
+        },
+    )
+    assert add_with_pantry_response.status_code == 200, add_with_pantry_response.text
+    added_with_pantry = add_with_pantry_response.json()["items"]
+    assert {item["product_title"] for item in added_with_pantry} == {"AH Citroen", "AH Olijfolie mild"}
 
 
 def test_delete_recipe_removes_recipe_and_weekplan_entries(client: TestClient, monkeypatch: pytest.MonkeyPatch):

@@ -1030,6 +1030,7 @@ function RecipeDetailDialog({
   const [listDraft, setListDraft] = useState(() => ({
     selectedListId: groceryLists[0] ? String(groceryLists[0].id) : '',
     newListName: '',
+    selectedPantryProductIds: [],
   }));
   const [deleteBusy, setDeleteBusy] = useState(false);
   const titleId = `recipe-detail-title-${recipe.id}`;
@@ -1045,10 +1046,13 @@ function RecipeDetailDialog({
   const sourceUrl = normalizeExternalUrl(recipe.source_url);
   const sourceHost = hostFromUrl(sourceUrl);
   const recipeLead = descriptionParagraphs[0] || sourceHost || snippet(recipe.instructions, 180);
-  const pantryIngredients = recipe.ingredients.filter(
+  const matchedPantryIngredients = recipe.ingredients.filter(
+    (ingredient) => ingredient.product_id && ingredient.requires_product === false
+  );
+  const unmatchedPantryIngredients = recipe.ingredients.filter(
     (ingredient) => !ingredient.product_id && ingredient.requires_product === false
   );
-  const pantryIngredientSummary = pantryIngredients
+  const unmatchedPantryIngredientSummary = unmatchedPantryIngredients
     .map((ingredient) => {
       const label = formatIngredientName(ingredient.name || ingredient.normalized_name || ingredient.raw_text);
       const measure = formatIngredientMeasure(ingredient, locale);
@@ -1074,6 +1078,7 @@ function RecipeDetailDialog({
     setListDraft({
       selectedListId: groceryLists[0] ? String(groceryLists[0].id) : '',
       newListName: '',
+      selectedPantryProductIds: [],
     });
     setDeleteBusy(false);
   }, [groceryLists, recipe.id, recipe.base_persons]);
@@ -1183,6 +1188,22 @@ function RecipeDetailDialog({
     }));
   }
 
+  function togglePantryProduct(productId) {
+    setListDraft((current) => {
+      const selectedIds = new Set(current.selectedPantryProductIds);
+      if (selectedIds.has(productId)) {
+        selectedIds.delete(productId);
+      } else {
+        selectedIds.add(productId);
+      }
+
+      return {
+        ...current,
+        selectedPantryProductIds: [...selectedIds],
+      };
+    });
+  }
+
   async function handleAddToList() {
     const nextPersons = Math.max(1, Number(planDraft.persons) || 1);
 
@@ -1213,11 +1234,13 @@ function RecipeDetailDialog({
       await onAddToGroceryList(Number(targetListId), {
         recipe_id: recipe.id,
         persons: nextPersons,
+        include_pantry_product_ids: listDraft.selectedPantryProductIds,
       });
       setListDraft((current) => ({
         ...current,
         selectedListId: String(targetListId),
         newListName: '',
+        selectedPantryProductIds: [],
       }));
       setListNotice({ type: 'success', text: copy.dashboard.recipes.addedToList });
       setListOverlayOpen(false);
@@ -1247,13 +1270,13 @@ function RecipeDetailDialog({
   }
 
   function handleReviewBasicIngredients() {
-    if (!pantryIngredients.length) {
+    if (!unmatchedPantryIngredients.length) {
       return;
     }
 
     setListOverlayOpen(false);
     setShowAllIngredients(true);
-    setOpenIngredientMatchId(pantryIngredients[0].id);
+    setOpenIngredientMatchId(unmatchedPantryIngredients[0].id);
   }
 
   async function handleAutoMatch() {
@@ -1537,12 +1560,43 @@ function RecipeDetailDialog({
                       <p className="panel-copy">{copy.dashboard.recipes.listOverlayCopy}</p>
                     </div>
                     <NoticeBanner notice={listNotice} />
-                    {pantryIngredientSummary ? (
+                    {matchedPantryIngredients.length ? (
+                      <div className="recipe-list-basics-note">
+                        <strong>{copy.dashboard.recipes.listOverlayPantryMatchedTitle}</strong>
+                        <p className="helper-copy">{copy.dashboard.recipes.listOverlayPantryMatchedCopy}</p>
+                        <div className="recipe-list-basics-options">
+                          {matchedPantryIngredients.map((ingredient) => {
+                            const ingredientLabel = formatIngredientName(
+                              ingredient.name || ingredient.normalized_name || ingredient.raw_text
+                            );
+                            const ingredientMeasure = formatIngredientMeasure(ingredient, locale);
+                            const itemLabel = ingredientMeasure
+                              ? `${ingredientLabel} (${ingredientMeasure})`
+                              : ingredientLabel;
+                            const isSelected = listDraft.selectedPantryProductIds.includes(ingredient.product_id);
+
+                            return (
+                              <label key={`${recipe.id}-pantry-${ingredient.id}`} className="checkbox-row">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => togglePantryProduct(ingredient.product_id)}
+                                />
+                                <span>
+                                  {itemLabel}: {ingredient.product_title}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                    {unmatchedPantryIngredientSummary ? (
                       <div className="recipe-list-basics-note">
                         <strong>{copy.dashboard.recipes.listOverlayBasicIngredientsTitle}</strong>
                         <p className="helper-copy">
                           {replaceTemplate(copy.dashboard.recipes.listOverlayBasicIngredientsCopy, {
-                            ingredients: pantryIngredientSummary,
+                            ingredients: unmatchedPantryIngredientSummary,
                           })}
                         </p>
                         <p className="helper-copy">{copy.dashboard.recipes.listOverlayBasicIngredientsHint}</p>

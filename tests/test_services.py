@@ -137,7 +137,26 @@ def test_match_product_to_ingredient_ignores_pantry_items():
         SimpleNamespace(normalized_title="bertolli bio originele extra vierge olijfolie", id=1),
     ]
 
-    assert match_product_to_ingredient("olijfolie", products) is None
+    assert match_product_to_ingredient("water", products) is None
+    assert match_product_to_ingredient("olijfolie", products).id == 1
+
+
+def test_match_product_to_ingredient_handles_enchilada_style_ingredient_phrasing():
+    products = [
+        SimpleNamespace(normalized_title="verstegen strooier koriander gemalen", id=1),
+        SimpleNamespace(normalized_title="verstegen chili vlokken", id=2),
+        SimpleNamespace(normalized_title="ah tomatenblokjes", id=3),
+        SimpleNamespace(normalized_title="ah goudse oud 48 plakken", id=4),
+        SimpleNamespace(normalized_title="ah tortilla naturel wraps large 12 stuks", id=5),
+        SimpleNamespace(normalized_title="ah terra witte bonen", id=6),
+    ]
+
+    assert match_product_to_ingredient("gemalen korianderzaad", products).id == 1
+    assert match_product_to_ingredient("chilivlokken", products).id == 2
+    assert match_product_to_ingredient("tomatenblokjes in blik", products).id == 3
+    assert match_product_to_ingredient("oude kaas 48+", products).id == 4
+    assert match_product_to_ingredient("tortillawraps", products).id == 5
+    assert match_product_to_ingredient("witte bonen in blik", products).id == 6
 
 
 def test_match_product_to_ingredient_rejects_recipe_irrelevant_extra_tokens():
@@ -172,3 +191,36 @@ def test_find_ah_product_url_prefers_original_query_when_normalized_search_is_to
     selected = asyncio.run(find_ah_product_url("gedroogde munt"))
 
     assert selected == "https://www.ah.nl/producten/product/wi386198/verstegen-munt"
+
+
+def test_find_ah_product_url_prefers_whole_onions_over_processed_onions(monkeypatch: pytest.MonkeyPatch):
+    async def fake_fetch(url: str) -> str:
+        if "middelgrote%20uien" in url:
+            return """
+                <a href=\"/producten/product/wi4083/ah-gele-uien\" aria-label=\"AH Gele uien, 1 kilo\"></a>
+                <a href=\"/producten/product/wi41078/ah-gesneden-uien\" aria-label=\"AH Gesneden uien, 400 gram\"></a>
+            """
+        if url.endswith("query=ui"):
+            raise AssertionError("normalized fallback should not be needed for onions")
+        raise AssertionError(url)
+
+    monkeypatch.setattr(services_module, "fetch_ah_html", fake_fetch)
+
+    selected = asyncio.run(find_ah_product_url("middelgrote uien"))
+
+    assert selected == "https://www.ah.nl/producten/product/wi4083/ah-gele-uien"
+
+
+def test_find_ah_product_url_uses_normalized_query_when_original_result_is_processed_fallback(monkeypatch: pytest.MonkeyPatch):
+    async def fake_fetch(url: str) -> str:
+        if "witte%20bonen%20in%20blik" in url:
+            return '<a href="/producten/product/wi208645/hak-gesneden-bonen-met-witte-bonen" aria-label="Hak Gesneden bonen met witte bonen, 400 gram"></a>'
+        if url.endswith("query=witte%20bonen"):
+            return '<a href="/producten/product/wi9837917/ah-terra-witte-bonen" aria-label="AH Terra Witte bonen, 400 gram"></a>'
+        raise AssertionError(url)
+
+    monkeypatch.setattr(services_module, "fetch_ah_html", fake_fetch)
+
+    selected = asyncio.run(find_ah_product_url("witte bonen in blik"))
+
+    assert selected == "https://www.ah.nl/producten/product/wi9837917/ah-terra-witte-bonen"
