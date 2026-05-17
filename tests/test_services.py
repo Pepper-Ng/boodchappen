@@ -1,11 +1,14 @@
+import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
+from backend.app import services as services_module
 from backend.app.services import (
     aggregate_ingredients,
     format_shopping_line,
+    find_ah_product_url,
     match_product_to_ingredient,
     parse_ah_product_html,
     parse_ah_recipe_html,
@@ -135,3 +138,37 @@ def test_match_product_to_ingredient_ignores_pantry_items():
     ]
 
     assert match_product_to_ingredient("olijfolie", products) is None
+
+
+def test_match_product_to_ingredient_rejects_recipe_irrelevant_extra_tokens():
+    products = [
+        SimpleNamespace(normalized_title="euroma ras el hanout by jonnie boer", id=1),
+        SimpleNamespace(normalized_title="ah ras el hanout cashewnoten ongezouten", id=2),
+        SimpleNamespace(normalized_title="maza hoemoes ras el hanout", id=3),
+    ]
+
+    assert match_product_to_ingredient("ras el hanout", products).id == 1
+
+
+def test_match_product_to_ingredient_accepts_single_token_exact_matches_with_brands():
+    products = [
+        SimpleNamespace(normalized_title="verstegen paprikapoeder mild", id=1),
+        SimpleNamespace(normalized_title="ah paprika mild gemalen", id=2),
+    ]
+
+    assert match_product_to_ingredient("paprikapoeder", products).id == 1
+
+
+def test_find_ah_product_url_prefers_original_query_when_normalized_search_is_too_generic(monkeypatch: pytest.MonkeyPatch):
+    async def fake_fetch(url: str) -> str:
+        if "gedroogde%20munt" in url:
+            return '<a href="/producten/product/wi386198/verstegen-munt" aria-label="Verstegen Munt, 15 gram"></a>'
+        if url.endswith("query=munt"):
+            return '<a href="/producten/product/wi238969/ah-munt" aria-label="AH Munt, 20 gram"></a>'
+        raise AssertionError(url)
+
+    monkeypatch.setattr(services_module, "fetch_ah_html", fake_fetch)
+
+    selected = asyncio.run(find_ah_product_url("gedroogde munt"))
+
+    assert selected == "https://www.ah.nl/producten/product/wi386198/verstegen-munt"

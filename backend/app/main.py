@@ -315,9 +315,22 @@ async def auto_match_recipe_ingredients(
                 ingredient.product_id = None
 
         if ingredient_requires_product(ingredient) and not ingredient.product_id:
-            matched_product = match_product_to_ingredient(ingredient.normalized_name, products)
+            matched_product = None
+            search_query = ingredient.name or ingredient.normalized_name or ingredient.raw_text
+
+            if rematch_existing:
+                candidate_url = await find_ah_product_url(search_query)
+                if candidate_url:
+                    product_data = await import_ah_product(candidate_url)
+                    matched_product = upsert_imported_product(session, owner_id, product_data)
+                    products.append(matched_product)
+                    products_by_id[matched_product.id] = matched_product
+
             if not matched_product:
-                candidate_url = await find_ah_product_url(ingredient.normalized_name or ingredient.name)
+                matched_product = match_product_to_ingredient(ingredient.normalized_name, products)
+
+            if not matched_product:
+                candidate_url = await find_ah_product_url(search_query)
                 if candidate_url:
                     product_data = await import_ah_product(candidate_url)
                     matched_product = upsert_imported_product(session, owner_id, product_data)

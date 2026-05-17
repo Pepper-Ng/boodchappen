@@ -77,6 +77,8 @@ MATCH_IGNORED_PRODUCT_TOKENS = {
 MATCH_DISALLOWED_PRODUCT_TOKENS = {
     "biscuit",
     "biscuits",
+    "cashewnoten",
+    "hoemoes",
 }
 
 INGREDIENT_DESCRIPTOR_TOKENS = {
@@ -306,6 +308,33 @@ def score_token_overlap(query_tokens: set[str], candidate_tokens: set[str]) -> t
     ingredient_ratio = overlap_count / max(len(query_tokens), 1)
     product_ratio = overlap_count / max(len(candidate_tokens), 1)
     return ingredient_ratio, product_ratio, overlap_count, -len(extra_tokens)
+
+
+def select_best_candidate(query: str, candidates: list[dict[str, str]]) -> dict[str, str] | None:
+    normalized_query = normalize_ingredient_name(query)
+    query_tokens = tokenize_matching_text(normalized_query)
+    if not query_tokens:
+        return candidates[0] if candidates else None
+
+    scored_candidates: list[tuple[float, float, int, int, dict[str, str]]] = []
+    for candidate in candidates:
+        normalized_title = normalize_product_title(candidate["title"])
+        title_tokens = tokenize_matching_text(normalized_title, drop_product_stopwords=True)
+        if normalize_ingredient_name(normalized_title) == normalized_query:
+            return candidate
+
+        score = score_token_overlap(query_tokens, title_tokens)
+        if score:
+            scored_candidates.append((*score, candidate))
+
+    if not scored_candidates:
+        return None
+
+    scored_candidates.sort(key=lambda item: (item[0], item[1], item[2], item[3]), reverse=True)
+    best_ratio, best_product_ratio, best_overlap, _, best_candidate = scored_candidates[0]
+    if (best_ratio >= 1.0 and (best_product_ratio >= 0.5 or len(query_tokens) == 1)) or best_overlap >= 2:
+        return best_candidate
+    return None
 
 
 def is_pantry_ingredient(normalized_name: str) -> bool:
@@ -590,32 +619,21 @@ async def find_ah_product_url(query: str) -> str | None:
     if is_pantry_ingredient(normalized_query):
         return None
 
-    search_html = await fetch_ah_html(build_ah_search_url(normalized_query or query))
-    candidates = parse_ah_product_search_results(search_html)
-    if not candidates:
-        return None
+    search_queries: list[str] = []
+    original_query = normalize_space(query)
+    if original_query:
+        search_queries.append(original_query)
+    if normalized_query and normalized_query not in {item.lower() for item in search_queries}:
+        search_queries.append(normalized_query)
 
-    query_tokens = tokenize_matching_text(normalized_query)
-    if query_tokens:
-        scored_candidates: list[tuple[float, float, int, int, dict[str, str]]] = []
-        for candidate in candidates:
-            normalized_title = normalize_product_title(candidate["title"])
-            title_tokens = tokenize_matching_text(normalized_title, drop_product_stopwords=True)
-            if normalize_ingredient_name(normalized_title) == normalized_query:
-                return candidate["url"]
-            score = score_token_overlap(query_tokens, title_tokens)
-            if score:
-                scored_candidates.append((*score, candidate))
+    for search_query in search_queries:
+        search_html = await fetch_ah_html(build_ah_search_url(search_query))
+        candidates = parse_ah_product_search_results(search_html)
+        best_candidate = select_best_candidate(query, candidates)
+        if best_candidate:
+            return best_candidate["url"]
 
-        if scored_candidates:
-            scored_candidates.sort(key=lambda item: (item[0], item[1], item[2], item[3]), reverse=True)
-            best_ratio, best_product_ratio, best_overlap, _, best_candidate = scored_candidates[0]
-            if (best_ratio >= 1.0 and best_product_ratio >= 0.5) or best_overlap >= 2:
-                return best_candidate["url"]
-
-        return None
-
-    return candidates[0]["url"]
+    return None
 
 
 def convert_to_base_unit(quantity: float, unit: str) -> tuple[float, str]:
@@ -719,7 +737,7 @@ def match_product_to_ingredient(normalized_name: str, products: list[Any]):
         if scored_products:
             scored_products.sort(key=lambda item: (item[0], item[1], item[2], item[3]), reverse=True)
             best_ratio, best_product_ratio, best_overlap, _, best_product = scored_products[0]
-            if (best_ratio >= 1.0 and best_product_ratio >= 0.5) or best_overlap >= 2:
+            if (best_ratio >= 1.0 and (best_product_ratio >= 0.5 or len(ingredient_tokens) == 1)) or best_overlap >= 2:
                 return best_product
 
     return None
