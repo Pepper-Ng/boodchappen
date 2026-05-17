@@ -47,6 +47,7 @@ from .services import (
     convert_to_base_unit,
     find_ah_product_url,
     import_ah_product,
+    is_pantry_ingredient,
     match_product_to_ingredient,
     normalize_product_title,
     scrape_ah_recipe,
@@ -122,8 +123,7 @@ def recipe_to_out(session: Session, recipe: Recipe) -> RecipeOut:
     ingredients = session.exec(
         select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe.id)
     ).all()
-    matched_ingredients = sum(1 for ingredient in ingredients if ingredient.product_id)
-    total_ingredients = len(ingredients)
+    matched_ingredients, total_ingredients = recipe_matching_counts(ingredients)
     return RecipeOut(
         id=recipe.id,
         source_url=recipe.source_url,
@@ -136,7 +136,7 @@ def recipe_to_out(session: Session, recipe: Recipe) -> RecipeOut:
         ingredients=[ingredient_to_out(session, ingredient) for ingredient in ingredients],
         matched_ingredients=matched_ingredients,
         total_ingredients=total_ingredients,
-        is_fully_matched=bool(total_ingredients) and matched_ingredients == total_ingredients,
+        is_fully_matched=matched_ingredients == total_ingredients,
         created_at=recipe.created_at,
     )
 
@@ -235,11 +235,22 @@ def ensure_owned_recipe_ingredient(session: Session, user_id: int, recipe_id: in
     return ingredient
 
 
+def ingredient_requires_product(ingredient: RecipeIngredient) -> bool:
+    return not is_pantry_ingredient(ingredient.normalized_name)
+
+
+def recipe_matching_counts(ingredients: list[RecipeIngredient]) -> tuple[int, int]:
+    relevant_ingredients = [ingredient for ingredient in ingredients if ingredient_requires_product(ingredient)]
+    matched_ingredients = sum(1 for ingredient in relevant_ingredients if ingredient.product_id)
+    return matched_ingredients, len(relevant_ingredients)
+
+
 def recipe_has_full_product_matching(session: Session, recipe_id: int) -> bool:
     ingredients = session.exec(
         select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe_id)
     ).all()
-    return bool(ingredients) and all(ingredient.product_id for ingredient in ingredients)
+    matched_ingredients, total_ingredients = recipe_matching_counts(ingredients)
+    return matched_ingredients == total_ingredients
 
 
 def pick_username(session: Session, email: str, requested_username: str | None) -> str:
@@ -282,8 +293,15 @@ def upsert_imported_product(session: Session, owner_id: int, product_data: dict)
     return product
 
 
-async def auto_match_recipe_ingredients(session: Session, owner_id: int, recipe_id: int) -> dict[str, int]:
+async def auto_match_recipe_ingredients(
+    session: Session,
+    owner_id: int,
+    recipe_id: int,
+    *,
+    rematch_existing: bool = False,
+) -> dict[str, int]:
     products = session.exec(select(Product).where(Product.owner_id == owner_id)).all()
+    products_by_id = {product.id: product for product in products}
     ingredients = session.exec(
         select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe_id)
     ).all()
@@ -291,7 +309,12 @@ async def auto_match_recipe_ingredients(session: Session, owner_id: int, recipe_
     matched = 0
     unmatched = 0
     for ingredient in ingredients:
-        if not ingredient.product_id:
+        if rematch_existing and ingredient.product_id and ingredient_requires_product(ingredient):
+            current_product = products_by_id.get(ingredient.product_id)
+            if current_product and not match_product_to_ingredient(ingredient.normalized_name, [current_product]):
+                ingredient.product_id = None
+
+        if ingredient_requires_product(ingredient) and not ingredient.product_id:
             matched_product = match_product_to_ingredient(ingredient.normalized_name, products)
             if not matched_product:
                 candidate_url = await find_ah_product_url(ingredient.normalized_name or ingredient.name)
@@ -299,12 +322,14 @@ async def auto_match_recipe_ingredients(session: Session, owner_id: int, recipe_
                     product_data = await import_ah_product(candidate_url)
                     matched_product = upsert_imported_product(session, owner_id, product_data)
                     products.append(matched_product)
+                    products_by_id[matched_product.id] = matched_product
             ingredient.product_id = matched_product.id if matched_product else None
             session.add(ingredient)
-        if ingredient.product_id:
-            matched += 1
-        else:
-            unmatched += 1
+        if ingredient_requires_product(ingredient):
+            if ingredient.product_id:
+                matched += 1
+            else:
+                unmatched += 1
 
     session.commit()
     return {"matched": matched, "unmatched": unmatched}
@@ -497,7 +522,7 @@ def add_recipe_to_named_shopping_list(
         select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe.id)
     ).all()
     for ingredient in ingredients:
-        if not ingredient.product_id:
+        if not ingredient_requires_product(ingredient) or not ingredient.product_id:
             continue
 
         base_quantity, base_unit = convert_to_base_unit(ingredient.quantity * factor, ingredient.unit)
@@ -560,7 +585,7 @@ def build_named_shopping_list(session: Session, user: User, shopping_list: Shopp
             select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe.id)
         ).all()
         for ingredient in ingredients:
-            if not ingredient.product_id:
+            if not ingredient_requires_product(ingredient) or not ingredient.product_id:
                 continue
 
             quantity = ingredient.quantity * factor
@@ -789,7 +814,7 @@ def delete_recipe(recipe_id: int, session: Session = Depends(get_session), user:
 @app.post("/recipes/{recipe_id}/auto-match", response_model=RecipeOut)
 async def auto_match_recipe(recipe_id: int, session: Session = Depends(get_session), user: User = Depends(current_user)):
     recipe = ensure_owned_recipe(session, user.id, recipe_id)
-    await auto_match_recipe_ingredients(session, user.id, recipe.id)
+    await auto_match_recipe_ingredients(session, user.id, recipe.id, rematch_existing=True)
     session.refresh(recipe)
     return recipe_to_out(session, recipe)
 

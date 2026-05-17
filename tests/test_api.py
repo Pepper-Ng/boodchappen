@@ -277,6 +277,98 @@ def test_recipe_import_job_and_shopping_list_flow(client: TestClient, monkeypatc
     assert updated_items[first_item["id"]]["quantity"] == pytest.approx(first_item["quantity"] + 1)
 
 
+def test_pantry_ingredients_do_not_block_weekplan_or_grocery_list(client: TestClient, monkeypatch: pytest.MonkeyPatch):
+    auth = register_user(client, email="pantry@example.com", username="pantry")
+    headers = {"Authorization": f"Bearer {auth['access_token']}"}
+    recipe_payload = {
+        "external_id": "test-pantry",
+        "name": "Citroenwater",
+        "normalized_name": "citroenwater",
+        "description": "Test recipe",
+        "image": "",
+        "instructions": "Mix everything.",
+        "base_persons": 2,
+        "ingredients": [
+            {
+                "name": "water",
+                "normalized_name": "water",
+                "quantity": 1,
+                "unit": "l",
+                "raw_text": "1 l water",
+            },
+            {
+                "name": "milde olijfolie",
+                "normalized_name": "olijfolie",
+                "quantity": 2,
+                "unit": "el",
+                "raw_text": "2 el milde olijfolie",
+            },
+            {
+                "name": "biologische citroen",
+                "normalized_name": "biologische citroen",
+                "quantity": 1,
+                "unit": "stuk",
+                "raw_text": "1 biologische citroen",
+            },
+        ],
+    }
+    search_queries: list[str] = []
+
+    async def fake_scrape(_: str) -> dict:
+        return recipe_payload
+
+    async def fake_find_product(query: str) -> str | None:
+        search_queries.append(query)
+        if query == "biologische citroen":
+            return "https://www.ah.nl/producten/product/wi230708/ah-citroen"
+        return None
+
+    async def fake_import_product(_: str) -> dict:
+        return {
+            "ah_id": "wi230708",
+            "source_url": "https://www.ah.nl/producten/product/wi230708/ah-citroen",
+            "title": "AH Citroen",
+            "normalized_title": "ah citroen",
+            "image": "",
+            "price": 0.79,
+            "unit": "per stuk",
+            "description": "Citroen",
+        }
+
+    monkeypatch.setattr(main_module, "scrape_ah_recipe", fake_scrape)
+    monkeypatch.setattr(main_module, "find_ah_product_url", fake_find_product)
+    monkeypatch.setattr(main_module, "import_ah_product", fake_import_product)
+
+    recipe_response = client.post("/recipes/import", headers=headers, json={"url": RECIPE_URL})
+    assert recipe_response.status_code == 200, recipe_response.text
+    recipe = recipe_response.json()
+    assert recipe["is_fully_matched"] is True
+    assert recipe["matched_ingredients"] == 1
+    assert recipe["total_ingredients"] == 1
+    assert search_queries == ["biologische citroen"]
+
+    week_plan_response = client.post(
+        "/weekplan",
+        headers=headers,
+        json={"day": "monday", "recipe_id": recipe["id"], "persons": 2},
+    )
+    assert week_plan_response.status_code == 200, week_plan_response.text
+
+    create_list_response = client.post("/grocery-lists", headers=headers, json={"name": "Pantry test"})
+    assert create_list_response.status_code == 200, create_list_response.text
+    shopping_list_id = create_list_response.json()["id"]
+
+    add_recipe_response = client.post(
+        f"/grocery-lists/{shopping_list_id}/recipes",
+        headers=headers,
+        json={"recipe_id": recipe["id"], "persons": 2},
+    )
+    assert add_recipe_response.status_code == 200, add_recipe_response.text
+    added_items = add_recipe_response.json()["items"]
+    assert len(added_items) == 1
+    assert added_items[0]["product_title"] == "AH Citroen"
+
+
 def test_delete_recipe_removes_recipe_and_weekplan_entries(client: TestClient, monkeypatch: pytest.MonkeyPatch):
     auth = register_user(client, email="deleter@example.com", username="deleter")
     headers = {"Authorization": f"Bearer {auth['access_token']}"}

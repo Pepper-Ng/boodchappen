@@ -64,6 +64,7 @@ MATCH_IGNORED_PRODUCT_TOKENS = {
     "albert",
     "heijn",
     "terra",
+    "bio",
     "biologisch",
     "mix",
     "voor",
@@ -73,9 +74,18 @@ MATCH_IGNORED_PRODUCT_TOKENS = {
     "verse",
 }
 
+MATCH_DISALLOWED_PRODUCT_TOKENS = {
+    "biscuit",
+    "biscuits",
+}
+
 INGREDIENT_DESCRIPTOR_TOKENS = {
     "ca",
     "ongeveer",
+    "biologisch",
+    "biologische",
+    "gedroogd",
+    "gedroogde",
     "grote",
     "groot",
     "kleine",
@@ -86,13 +96,31 @@ INGREDIENT_DESCRIPTOR_TOKENS = {
     "half",
     "hele",
     "heel",
+    "vers",
+    "verse",
 }
 
 PANTRY_INGREDIENTS = {
     "water",
     "kraanwater",
+    "olijfolie",
     "zout",
     "peper",
+}
+
+INGREDIENT_PHRASE_NORMALIZATIONS = {
+    "groentebouillonblokje": "groente bouillon",
+    "groentebouillonblokjes": "groente bouillon",
+    "parmigiano reggiano": "parmezaan",
+    "parmezaanse kaas": "parmezaan",
+    "risottorijst": "risotto rijst",
+}
+
+MATCH_TOKEN_SYNONYMS = {
+    "parmigiano": "parmezaan",
+    "parmezaan": "parmezaan",
+    "parmezaanse": "parmezaan",
+    "reggiano": "parmezaan",
 }
 
 KNOWN_UNITS = set(UNIT_ALIASES.values())
@@ -226,9 +254,13 @@ def normalize_recipe_name(name: str) -> str:
 def normalize_ingredient_name(name: str) -> str:
     cleaned = normalize_space(name).lower().replace("’", "'")
     cleaned = re.sub(r"[^\w\s-]", "", cleaned)
+    for source, replacement in INGREDIENT_PHRASE_NORMALIZATIONS.items():
+        cleaned = re.sub(rf"\b{re.escape(source)}\b", replacement, cleaned)
     words = [word for word in cleaned.split() if word not in INGREDIENT_DESCRIPTOR_TOKENS]
     if not words:
         return cleaned
+
+    words = [MATCH_TOKEN_SYNONYMS.get(word, word) for word in words]
 
     if "olijfolie" in words:
         return "olijfolie"
@@ -252,13 +284,28 @@ def normalize_ingredient_name(name: str) -> str:
 def tokenize_matching_text(value: str, *, drop_product_stopwords: bool = False) -> set[str]:
     normalized = normalize_ingredient_name(value)
     tokens = {
-        token
+        MATCH_TOKEN_SYNONYMS.get(token, token)
         for token in normalize_space(normalized).split()
         if token and len(token) >= 2
     }
     if drop_product_stopwords:
         return {token for token in tokens if token not in MATCH_IGNORED_PRODUCT_TOKENS}
     return tokens
+
+
+def score_token_overlap(query_tokens: set[str], candidate_tokens: set[str]) -> tuple[float, float, int, int] | None:
+    overlap = query_tokens & candidate_tokens
+    if not overlap:
+        return None
+
+    extra_tokens = candidate_tokens - query_tokens
+    if extra_tokens & MATCH_DISALLOWED_PRODUCT_TOKENS:
+        return None
+
+    overlap_count = len(overlap)
+    ingredient_ratio = overlap_count / max(len(query_tokens), 1)
+    product_ratio = overlap_count / max(len(candidate_tokens), 1)
+    return ingredient_ratio, product_ratio, overlap_count, -len(extra_tokens)
 
 
 def is_pantry_ingredient(normalized_name: str) -> bool:
@@ -550,20 +597,20 @@ async def find_ah_product_url(query: str) -> str | None:
 
     query_tokens = tokenize_matching_text(normalized_query)
     if query_tokens:
-        scored_candidates: list[tuple[float, int, dict[str, str]]] = []
+        scored_candidates: list[tuple[float, float, int, int, dict[str, str]]] = []
         for candidate in candidates:
             normalized_title = normalize_product_title(candidate["title"])
             title_tokens = tokenize_matching_text(normalized_title, drop_product_stopwords=True)
-            overlap = query_tokens & title_tokens
             if normalize_ingredient_name(normalized_title) == normalized_query:
                 return candidate["url"]
-            if overlap:
-                scored_candidates.append((len(overlap) / max(len(query_tokens), 1), len(overlap), candidate))
+            score = score_token_overlap(query_tokens, title_tokens)
+            if score:
+                scored_candidates.append((*score, candidate))
 
         if scored_candidates:
-            scored_candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
-            best_ratio, best_overlap, best_candidate = scored_candidates[0]
-            if best_ratio >= 1.0 or best_overlap >= 2:
+            scored_candidates.sort(key=lambda item: (item[0], item[1], item[2], item[3]), reverse=True)
+            best_ratio, best_product_ratio, best_overlap, _, best_candidate = scored_candidates[0]
+            if (best_ratio >= 1.0 and best_product_ratio >= 0.5) or best_overlap >= 2:
                 return best_candidate["url"]
 
         return None
@@ -658,23 +705,21 @@ def match_product_to_ingredient(normalized_name: str, products: list[Any]):
             return product
 
     if ingredient_tokens:
-        scored_products: list[tuple[float, int, Any]] = []
+        scored_products: list[tuple[float, float, int, int, Any]] = []
         for product in products:
             normalized_title = getattr(product, "normalized_title", "")
             product_tokens = tokenize_matching_text(normalized_title, drop_product_stopwords=True)
             if not product_tokens:
                 continue
 
-            overlap = ingredient_tokens & product_tokens
-            if overlap:
-                overlap_count = len(overlap)
-                overlap_ratio = overlap_count / max(len(ingredient_tokens), 1)
-                scored_products.append((overlap_ratio, overlap_count, product))
+            score = score_token_overlap(ingredient_tokens, product_tokens)
+            if score:
+                scored_products.append((*score, product))
 
         if scored_products:
-            scored_products.sort(key=lambda item: (item[0], item[1]), reverse=True)
-            best_ratio, best_overlap, best_product = scored_products[0]
-            if best_ratio >= 1.0 or best_overlap >= 2:
+            scored_products.sort(key=lambda item: (item[0], item[1], item[2], item[3]), reverse=True)
+            best_ratio, best_product_ratio, best_overlap, _, best_product = scored_products[0]
+            if (best_ratio >= 1.0 and best_product_ratio >= 0.5) or best_overlap >= 2:
                 return best_product
 
     return None

@@ -110,3 +110,28 @@ def test_match_product_to_ingredient_requires_specific_overlap_for_multi_word_ti
 
     assert match_product_to_ingredient("halve citroen", products).id == 2
     assert match_product_to_ingredient("rode linzen", products).id == 3
+
+
+def test_match_product_to_ingredient_handles_descriptors_compounds_and_synonyms():
+    products = [
+        SimpleNamespace(normalized_title="verstegen munt", id=1),
+        SimpleNamespace(normalized_title="ah biologisch citroenen", id=2),
+        SimpleNamespace(normalized_title="ah risotto rijst", id=3),
+        SimpleNamespace(normalized_title="ah bouillon groente", id=4),
+        SimpleNamespace(normalized_title="ah parmigiano reggiano", id=5),
+        SimpleNamespace(normalized_title="ah parmezaanse kaas biscuits", id=6),
+    ]
+
+    assert match_product_to_ingredient("gedroogde munt", products).id == 1
+    assert match_product_to_ingredient("biologische citroen", products).id == 2
+    assert match_product_to_ingredient("risottorijst", products).id == 3
+    assert match_product_to_ingredient("groentebouillonblokje", products).id == 4
+    assert match_product_to_ingredient("parmezaanse kaas", products).id == 5
+
+
+def test_match_product_to_ingredient_ignores_pantry_items():
+    products = [
+        SimpleNamespace(normalized_title="bertolli bio originele extra vierge olijfolie", id=1),
+    ]
+
+    assert match_product_to_ingredient("olijfolie", products) is None

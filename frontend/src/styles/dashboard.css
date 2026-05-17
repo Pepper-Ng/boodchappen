@@ -455,6 +455,21 @@
   justify-self: start;
 }
 
+.button-content--loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.button-inline-spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+
 .detail-toggle--footer {
   margin-top: 0.2rem;
 }

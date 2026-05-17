@@ -1018,7 +1018,6 @@ function RecipeDetailDialog({
   const [planDraft, setPlanDraft] = useState(() => createRecipeDetailDraft(recipe));
   const [planningBusy, setPlanningBusy] = useState(false);
   const [planningNotice, setPlanningNotice] = useState({ type: '', text: '' });
-  const [showFullDescription, setShowFullDescription] = useState(false);
   const [showAllIngredients, setShowAllIngredients] = useState(false);
   const [showAllInstructions, setShowAllInstructions] = useState(false);
   const [matchingBusy, setMatchingBusy] = useState(false);
@@ -1035,14 +1034,12 @@ function RecipeDetailDialog({
   const [deleteBusy, setDeleteBusy] = useState(false);
   const titleId = `recipe-detail-title-${recipe.id}`;
   const leadId = `recipe-detail-lead-${recipe.id}`;
-  const descriptionRegionId = `recipe-detail-description-${recipe.id}`;
   const ingredientsRegionId = `recipe-detail-ingredients-${recipe.id}`;
   const instructionsRegionId = `recipe-detail-instructions-${recipe.id}`;
   const descriptionParagraphs = textParagraphs(recipe.description);
   const instructionSteps = textParagraphs(recipe.instructions);
   const canToggleIngredients = recipe.ingredients.length > 3;
   const canToggleInstructions = instructionSteps.length > 3;
-  const visibleDescription = showFullDescription ? descriptionParagraphs : descriptionParagraphs.slice(0, 2);
   const visibleIngredients = showAllIngredients ? recipe.ingredients : recipe.ingredients.slice(0, 3);
   const visibleInstructions = showAllInstructions ? instructionSteps : instructionSteps.slice(0, 3);
   const sourceUrl = normalizeExternalUrl(recipe.source_url);
@@ -1050,13 +1047,11 @@ function RecipeDetailDialog({
   const recipeLead = descriptionParagraphs[0] || sourceHost || snippet(recipe.instructions, 180);
   const ingredientsToggleLabel = `${showAllIngredients ? copy.common.showLess : copy.common.showMore}...`;
   const instructionsToggleLabel = `${showAllInstructions ? copy.common.showLess : copy.common.showMore}...`;
-  const descriptionToggleLabel = showFullDescription ? copy.common.showLess : copy.common.showMore;
 
   useEffect(() => {
     setPlanDraft(createRecipeDetailDraft(recipe));
     setPlanningBusy(false);
     setPlanningNotice({ type: '', text: '' });
-    setShowFullDescription(false);
     setShowAllIngredients(false);
     setShowAllInstructions(false);
     setMatchingBusy(false);
@@ -1468,34 +1463,6 @@ function RecipeDetailDialog({
               <div className="recipe-detail-summary-grid">
                 <section className="detail-card">
                   <div className="panel-heading">
-                    <h3 className="panel-title">{copy.dashboard.recipes.descriptionTitle}</h3>
-                    {descriptionParagraphs.length > 2 ? (
-                      <button
-                        type="button"
-                        className="button button--secondary detail-toggle"
-                        aria-expanded={showFullDescription}
-                        aria-controls={descriptionRegionId}
-                        onClick={() => setShowFullDescription((current) => !current)}
-                      >
-                        {descriptionToggleLabel}
-                      </button>
-                    ) : null}
-                  </div>
-                  <div id={descriptionRegionId} className="detail-copy-stack">
-                    {visibleDescription.length ? (
-                      visibleDescription.map((paragraph, index) => (
-                        <p key={`${recipe.id}-description-${index + 1}`} className="detail-paragraph">
-                          {paragraph}
-                        </p>
-                      ))
-                    ) : (
-                      <p className="detail-paragraph detail-paragraph--muted">{copy.dashboard.recipes.descriptionEmpty}</p>
-                    )}
-                  </div>
-                </section>
-
-                <section className="detail-card">
-                  <div className="panel-heading">
                     <h3 className="panel-title">{copy.dashboard.recipes.ingredientsTitle}</h3>
                     <button
                       type="button"
@@ -1503,7 +1470,12 @@ function RecipeDetailDialog({
                       onClick={handleAutoMatch}
                       disabled={matchingBusy}
                     >
-                      {matchingBusy ? copy.common.loading : copy.dashboard.recipes.autoMatchButton}
+                      {matchingBusy ? (
+                        <span className="button-content--loading">
+                          <span className="button-inline-spinner" aria-hidden="true" />
+                          <span>{copy.dashboard.recipes.autoMatchButton}</span>
+                        </span>
+                      ) : copy.dashboard.recipes.autoMatchButton}
                     </button>
                   </div>
                   <NoticeBanner notice={matchingNotice} />
