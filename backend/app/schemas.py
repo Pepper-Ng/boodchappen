@@ -75,6 +75,7 @@ class RecipeIngredientOut(BaseModel):
     quantity: float
     unit: str
     raw_text: str
+    requires_product: bool
     product_id: Optional[int]
     product_title: Optional[str]
     product_url: Optional[str]

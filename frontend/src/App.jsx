@@ -1044,7 +1044,17 @@ function RecipeDetailDialog({
   const visibleInstructions = showAllInstructions ? instructionSteps : instructionSteps.slice(0, 3);
   const sourceUrl = normalizeExternalUrl(recipe.source_url);
   const sourceHost = hostFromUrl(sourceUrl);
-  const recipeLead = descriptionParagraphs[0] || sourceHost || snippet(recipe.instructions, 180);
+  const recipeLead = descriptionParagraphs.length ? '' : sourceHost || snippet(recipe.instructions, 180);
+  const pantryIngredients = recipe.ingredients.filter(
+    (ingredient) => !ingredient.product_id && ingredient.requires_product === false
+  );
+  const pantryIngredientSummary = pantryIngredients
+    .map((ingredient) => {
+      const label = formatIngredientName(ingredient.name || ingredient.normalized_name || ingredient.raw_text);
+      const measure = formatIngredientMeasure(ingredient, locale);
+      return measure ? `${label} (${measure})` : label;
+    })
+    .join(', ');
   const ingredientsToggleLabel = `${showAllIngredients ? copy.common.showLess : copy.common.showMore}...`;
   const instructionsToggleLabel = `${showAllInstructions ? copy.common.showLess : copy.common.showMore}...`;
 
@@ -1236,6 +1246,16 @@ function RecipeDetailDialog({
     }));
   }
 
+  function handleReviewBasicIngredients() {
+    if (!pantryIngredients.length) {
+      return;
+    }
+
+    setListOverlayOpen(false);
+    setShowAllIngredients(true);
+    setOpenIngredientMatchId(pantryIngredients[0].id);
+  }
+
   async function handleAutoMatch() {
     setMatchingBusy(true);
     setMatchingNotice({ type: '', text: '' });
@@ -1311,7 +1331,7 @@ function RecipeDetailDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        aria-describedby={leadId}
+        aria-describedby={recipeLead ? leadId : undefined}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="recipe-detail-shell">
@@ -1320,9 +1340,11 @@ function RecipeDetailDialog({
             <div className="recipe-detail-heading">
               <span className="eyebrow">{copy.dashboard.recipes.viewRecipe}</span>
               <h2 id={titleId} ref={titleRef} tabIndex={-1} className="recipe-detail-title">{recipe.name}</h2>
-              <p id={leadId} className="recipe-detail-lead">
-                {recipeLead}
-              </p>
+              {recipeLead ? (
+                <p id={leadId} className="recipe-detail-lead">
+                  {recipeLead}
+                </p>
+              ) : null}
             </div>
             <div className="recipe-detail-actions">
               {sourceUrl ? (
@@ -1337,245 +1359,284 @@ function RecipeDetailDialog({
           </div>
 
           <div className="recipe-detail-layout">
-            <aside className="recipe-detail-rail">
-              <ImageOrFallback
-                src={recipe.image}
-                alt={recipe.name}
-                fallback={<span>{recipe.name}</span>}
-                className="recipe-detail-cover recipe-detail-cover--image"
-                fallbackClassName="recipe-thumb recipe-detail-cover recipe-detail-cover--fallback"
-              />
-              <div className="recipe-detail-meta">
-                <span className="chip chip--accent">
-                  {recipe.base_persons} {copy.dashboard.recipes.basePersonsLabel}
-                </span>
-                <span className="chip">
-                  {recipe.ingredients.length} {copy.dashboard.recipes.ingredientsLabel}
-                </span>
-                {sourceHost ? <span className="chip">{sourceHost}</span> : null}
-                <span className="chip">{localizeDate(recipe.created_at, locale, { dateStyle: 'medium' })}</span>
+            <section className="detail-card detail-card--ingredient-pane">
+              <div className="recipe-detail-media-stack">
+                <ImageOrFallback
+                  src={recipe.image}
+                  alt={recipe.name}
+                  fallback={<span>{recipe.name}</span>}
+                  className="recipe-detail-cover recipe-detail-cover--image"
+                  fallbackClassName="recipe-thumb recipe-detail-cover recipe-detail-cover--fallback"
+                />
+                <div className="recipe-detail-meta">
+                  <span className="chip chip--accent">
+                    {recipe.base_persons} {copy.dashboard.recipes.basePersonsLabel}
+                  </span>
+                  <span className="chip">
+                    {recipe.ingredients.length} {copy.dashboard.recipes.ingredientsLabel}
+                  </span>
+                  {sourceHost ? <span className="chip">{sourceHost}</span> : null}
+                  <span className="chip">{localizeDate(recipe.created_at, locale, { dateStyle: 'medium' })}</span>
+                </div>
               </div>
 
-              <section className="detail-card detail-card--planning">
-                <div className="section-title-group">
-                  <h3 className="panel-title">{copy.dashboard.recipes.planningTitle}</h3>
-                  <p className="panel-copy">{copy.dashboard.recipes.planningCopy}</p>
-                </div>
-                <NoticeBanner notice={planningNotice} />
-                <form className="recipe-plan-grid" onSubmit={handlePlanSubmit}>
-                  <Field id={`recipe-detail-day-${recipe.id}`} label={copy.dashboard.week.dayLabel}>
-                    <select
-                      id={`recipe-detail-day-${recipe.id}`}
-                      className="select"
-                      value={planDraft.day}
-                      onChange={(event) => setPlanDraft((current) => ({ ...current, day: event.target.value }))}
-                    >
-                      {dayOrder.map((day) => (
-                        <option key={day} value={day}>
-                          {copy.dashboard.week.days[day]}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field id={`recipe-detail-persons-${recipe.id}`} label={copy.dashboard.week.personsLabel}>
-                    <input
-                      id={`recipe-detail-persons-${recipe.id}`}
-                      className="control"
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={planDraft.persons}
-                      onChange={(event) => {
-                        const nextValue = event.target.value === '' ? '' : Number(event.target.value);
-                        setPlanDraft((current) => ({ ...current, persons: nextValue }));
-                      }}
-                      required
-                    />
-                  </Field>
-                  <div className="recipe-plan-actions">
-                    <button type="submit" className="button button--primary button--block" disabled={planningBusy}>
-                      {planningBusy ? copy.common.loading : copy.dashboard.week.button}
-                    </button>
-                    <button
-                      type="button"
-                      className="button button--secondary button--block"
-                      onClick={() => {
-                        setListOverlayOpen((current) => !current);
-                        setListNotice({ type: '', text: '' });
-                      }}
-                      disabled={listBusy}
-                    >
-                      {copy.dashboard.recipes.addToListButton}
-                    </button>
-                  </div>
-                </form>
-                {listOverlayOpen ? (
-                  <div className="recipe-list-overlay">
-                    <div className="section-title-group">
-                      <h4 className="panel-title">{copy.dashboard.recipes.listOverlayTitle}</h4>
-                      <p className="panel-copy">{copy.dashboard.recipes.listOverlayCopy}</p>
-                    </div>
-                    <NoticeBanner notice={listNotice} />
-                    {groceryLists.length ? (
-                      <Field id={`recipe-list-select-${recipe.id}`} label={copy.dashboard.recipes.listOverlaySelectLabel}>
-                        <select
-                          id={`recipe-list-select-${recipe.id}`}
-                          className="select"
-                          value={listDraft.selectedListId}
-                          onChange={(event) => updateListDraft('selectedListId', event.target.value)}
-                        >
-                          <option value="">{copy.dashboard.recipes.listOverlaySelectLabel}</option>
-                          {groceryLists.map((list) => (
-                            <option key={list.id} value={String(list.id)}>
-                              {list.name}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-                    ) : null}
-                    <Field
-                      id={`recipe-list-create-${recipe.id}`}
-                      label={copy.dashboard.recipes.listOverlayCreateLabel}
-                      optionalLabel={copy.common.optional}
-                    >
-                      <input
-                        id={`recipe-list-create-${recipe.id}`}
-                        className="control"
-                        value={listDraft.newListName}
-                        placeholder={copy.dashboard.recipes.listOverlayCreatePlaceholder}
-                        onChange={(event) => updateListDraft('newListName', event.target.value)}
-                      />
-                    </Field>
-                    <button
-                      type="button"
-                      className="button button--primary button--block"
-                      onClick={handleAddToList}
-                      disabled={listBusy}
-                    >
-                      {listBusy ? copy.common.loading : copy.dashboard.recipes.addToListConfirmButton}
-                    </button>
-                  </div>
-                ) : null}
-              </section>
-            </aside>
+              <div className="panel-heading">
+                <h3 className="panel-title">{copy.dashboard.recipes.ingredientsTitle}</h3>
+                <button
+                  type="button"
+                  className="button button--secondary detail-toggle"
+                  onClick={handleAutoMatch}
+                  disabled={matchingBusy}
+                >
+                  {matchingBusy ? (
+                    <span className="button-content--loading">
+                      <span className="button-inline-spinner" aria-hidden="true" />
+                      <span>{copy.dashboard.recipes.autoMatchButton}</span>
+                    </span>
+                  ) : copy.dashboard.recipes.autoMatchButton}
+                </button>
+              </div>
+              <NoticeBanner notice={matchingNotice} />
+              <div id={ingredientsRegionId} className="recipe-detail-ingredients">
+                {visibleIngredients.map((ingredient, index) => {
+                  const ingredientLabel = formatIngredientName(
+                    ingredient.name || ingredient.normalized_name || ingredient.raw_text
+                  );
+                  const ingredientMeasure = formatIngredientMeasure(ingredient, locale);
+                  const requiresProduct = ingredient.requires_product !== false;
 
-            <div className="recipe-detail-main">
-              <div className="recipe-detail-summary-grid">
-                <section className="detail-card">
-                  <div className="panel-heading">
-                    <h3 className="panel-title">{copy.dashboard.recipes.ingredientsTitle}</h3>
-                    <button
-                      type="button"
-                      className="button button--secondary detail-toggle"
-                      onClick={handleAutoMatch}
-                      disabled={matchingBusy}
-                    >
-                      {matchingBusy ? (
-                        <span className="button-content--loading">
-                          <span className="button-inline-spinner" aria-hidden="true" />
-                          <span>{copy.dashboard.recipes.autoMatchButton}</span>
-                        </span>
-                      ) : copy.dashboard.recipes.autoMatchButton}
-                    </button>
-                  </div>
-                  <NoticeBanner notice={matchingNotice} />
-                  <div id={ingredientsRegionId} className="recipe-detail-ingredients">
-                    {visibleIngredients.map((ingredient, index) => (
-                      <div key={`${recipe.id}-ingredient-${index + 1}`} className="recipe-detail-ingredient">
-                        <div className="ingredient-match-main">
-                          <strong>{formatIngredientName(ingredient.name || ingredient.normalized_name || ingredient.raw_text)}</strong>
-                          {formatIngredientMeasure(ingredient, locale) ? (
-                            <span className="ingredient-measurement">{formatIngredientMeasure(ingredient, locale)}</span>
-                          ) : null}
-                          {ingredient.product_id ? (
-                            <span className="ingredient-product-name">
-                              {copy.dashboard.recipes.productLabel}: {ingredient.product_title}
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              className="button button--ghost ingredient-product-trigger"
-                              onClick={() => setOpenIngredientMatchId((current) => (current === ingredient.id ? null : ingredient.id))}
-                            >
-                              {copy.dashboard.recipes.productLabel}:{' '}
-                              <span className="ingredient-product-trigger__value">{copy.dashboard.recipes.noMatchLabel}</span>
-                            </button>
-                          )}
-                        </div>
-                        {!ingredient.product_id && openIngredientMatchId === ingredient.id ? (
-                          <div className="ingredient-match-controls">
-                            <select
-                              className="select"
-                              value={matchDrafts[ingredient.id]?.productId || ''}
-                              onChange={(event) => updateMatchDraft(ingredient.id, 'productId', event.target.value)}
-                            >
-                              <option value="">{copy.dashboard.recipes.matchSelectExisting}</option>
-                              {products.map((product) => (
-                                <option key={product.id} value={String(product.id)}>
-                                  {product.title}
-                                </option>
-                              ))}
-                            </select>
-                            <input
-                              className="control"
-                              type="url"
-                              inputMode="url"
-                              placeholder={copy.dashboard.recipes.matchUrlPlaceholder}
-                              value={matchDrafts[ingredient.id]?.ahUrl || ''}
-                              onChange={(event) => updateMatchDraft(ingredient.id, 'ahUrl', event.target.value)}
-                            />
-                            <button
-                              type="button"
-                              className="button button--secondary"
-                              onClick={() => handleManualMatch(ingredient)}
-                              disabled={matchingBusy}
-                            >
-                              {copy.dashboard.recipes.matchButton}
-                            </button>
-                          </div>
+                  return (
+                    <div key={`${recipe.id}-ingredient-${index + 1}`} className="recipe-detail-ingredient">
+                      <div className="ingredient-match-main">
+                        <strong>{ingredientLabel}</strong>
+                        {ingredientMeasure ? (
+                          <span className="ingredient-measurement">{ingredientMeasure}</span>
+                        ) : null}
+                        {ingredient.product_id ? (
+                          <span className="ingredient-product-name">
+                            {copy.dashboard.recipes.productLabel}: {ingredient.product_title}
+                          </span>
+                        ) : requiresProduct ? (
+                          <button
+                            type="button"
+                            className="ingredient-product-trigger"
+                            onClick={() => setOpenIngredientMatchId((current) => (current === ingredient.id ? null : ingredient.id))}
+                          >
+                            <span>{copy.dashboard.recipes.productLabel}:</span>
+                            <span className="ingredient-product-trigger__value">{copy.dashboard.recipes.noMatchLabel}</span>
+                          </button>
                         ) : null}
                       </div>
-                    ))}
-                  </div>
-                  {canToggleIngredients ? (
-                    <button
-                      type="button"
-                      className="button button--secondary detail-toggle detail-toggle--footer"
-                      aria-expanded={showAllIngredients}
-                      aria-controls={ingredientsRegionId}
-                      onClick={() => setShowAllIngredients((current) => !current)}
-                    >
-                      {ingredientsToggleLabel}
-                    </button>
-                  ) : null}
-                </section>
+                      {!ingredient.product_id && openIngredientMatchId === ingredient.id ? (
+                        <div className="ingredient-match-controls">
+                          <select
+                            className="select"
+                            value={matchDrafts[ingredient.id]?.productId || ''}
+                            onChange={(event) => updateMatchDraft(ingredient.id, 'productId', event.target.value)}
+                          >
+                            <option value="">{copy.dashboard.recipes.matchSelectExisting}</option>
+                            {products.map((product) => (
+                              <option key={product.id} value={String(product.id)}>
+                                {product.title}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            className="control"
+                            type="url"
+                            inputMode="url"
+                            placeholder={copy.dashboard.recipes.matchUrlPlaceholder}
+                            value={matchDrafts[ingredient.id]?.ahUrl || ''}
+                            onChange={(event) => updateMatchDraft(ingredient.id, 'ahUrl', event.target.value)}
+                          />
+                          <button
+                            type="button"
+                            className="button button--secondary"
+                            onClick={() => handleManualMatch(ingredient)}
+                            disabled={matchingBusy}
+                          >
+                            {copy.dashboard.recipes.matchButton}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
+              {canToggleIngredients ? (
+                <button
+                  type="button"
+                  className="button button--secondary detail-toggle detail-toggle--footer"
+                  aria-expanded={showAllIngredients}
+                  aria-controls={ingredientsRegionId}
+                  onClick={() => setShowAllIngredients((current) => !current)}
+                >
+                  {ingredientsToggleLabel}
+                </button>
+              ) : null}
+            </section>
 
-              <section className="detail-card detail-card--instructions">
-                <div className="panel-heading">
-                  <h3 className="panel-title">{copy.dashboard.recipes.instructionsTitle}</h3>
-                </div>
-                <ol id={instructionsRegionId} className="recipe-instruction-list">
-                  {visibleInstructions.map((step, index) => (
-                    <li key={`${recipe.id}-step-${index + 1}`} className="instruction-step">
-                      <span className="instruction-index">{index + 1}</span>
-                      <span className="instruction-copy">{step}</span>
-                    </li>
-                  ))}
-                </ol>
-                {canToggleInstructions ? (
+            <section className="detail-card detail-card--planning">
+              <div className="section-title-group">
+                <h3 className="panel-title">{copy.dashboard.recipes.planningTitle}</h3>
+                <p className="panel-copy">{copy.dashboard.recipes.planningCopy}</p>
+              </div>
+              <NoticeBanner notice={planningNotice} />
+              <form className="recipe-plan-grid" onSubmit={handlePlanSubmit}>
+                <Field id={`recipe-detail-day-${recipe.id}`} label={copy.dashboard.week.dayLabel}>
+                  <select
+                    id={`recipe-detail-day-${recipe.id}`}
+                    className="select"
+                    value={planDraft.day}
+                    onChange={(event) => setPlanDraft((current) => ({ ...current, day: event.target.value }))}
+                  >
+                    {dayOrder.map((day) => (
+                      <option key={day} value={day}>
+                        {copy.dashboard.week.days[day]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field id={`recipe-detail-persons-${recipe.id}`} label={copy.dashboard.week.personsLabel}>
+                  <input
+                    id={`recipe-detail-persons-${recipe.id}`}
+                    className="control"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={planDraft.persons}
+                    onChange={(event) => {
+                      const nextValue = event.target.value === '' ? '' : Number(event.target.value);
+                      setPlanDraft((current) => ({ ...current, persons: nextValue }));
+                    }}
+                    required
+                  />
+                </Field>
+                <div className="recipe-plan-actions">
+                  <button type="submit" className="button button--primary button--block" disabled={planningBusy}>
+                    {planningBusy ? copy.common.loading : copy.dashboard.week.button}
+                  </button>
                   <button
                     type="button"
-                    className="button button--secondary detail-toggle detail-toggle--footer"
-                    aria-expanded={showAllInstructions}
-                    aria-controls={instructionsRegionId}
-                    onClick={() => setShowAllInstructions((current) => !current)}
+                    className="button button--secondary button--block"
+                    onClick={() => {
+                      setListOverlayOpen((current) => !current);
+                      setListNotice({ type: '', text: '' });
+                    }}
+                    disabled={listBusy}
                   >
-                    {instructionsToggleLabel}
+                    {copy.dashboard.recipes.addToListButton}
                   </button>
-                ) : null}
-              </section>
-            </div>
+                </div>
+              </form>
+              {listOverlayOpen ? (
+                <div className="recipe-list-overlay">
+                  <div className="section-title-group">
+                    <h4 className="panel-title">{copy.dashboard.recipes.listOverlayTitle}</h4>
+                    <p className="panel-copy">{copy.dashboard.recipes.listOverlayCopy}</p>
+                  </div>
+                  <NoticeBanner notice={listNotice} />
+                  {pantryIngredientSummary ? (
+                    <div className="recipe-list-basics-note">
+                      <strong>{copy.dashboard.recipes.listOverlayBasicIngredientsTitle}</strong>
+                      <p className="helper-copy">
+                        {replaceTemplate(copy.dashboard.recipes.listOverlayBasicIngredientsCopy, {
+                          ingredients: pantryIngredientSummary,
+                        })}
+                      </p>
+                      <p className="helper-copy">{copy.dashboard.recipes.listOverlayBasicIngredientsHint}</p>
+                      <button
+                        type="button"
+                        className="button button--secondary"
+                        onClick={handleReviewBasicIngredients}
+                      >
+                        {copy.dashboard.recipes.listOverlayBasicIngredientsReview}
+                      </button>
+                    </div>
+                  ) : null}
+                  {groceryLists.length ? (
+                    <Field id={`recipe-list-select-${recipe.id}`} label={copy.dashboard.recipes.listOverlaySelectLabel}>
+                      <select
+                        id={`recipe-list-select-${recipe.id}`}
+                        className="select"
+                        value={listDraft.selectedListId}
+                        onChange={(event) => updateListDraft('selectedListId', event.target.value)}
+                      >
+                        <option value="">{copy.dashboard.recipes.listOverlaySelectLabel}</option>
+                        {groceryLists.map((list) => (
+                          <option key={list.id} value={String(list.id)}>
+                            {list.name}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  ) : null}
+                  <Field
+                    id={`recipe-list-create-${recipe.id}`}
+                    label={copy.dashboard.recipes.listOverlayCreateLabel}
+                    optionalLabel={copy.common.optional}
+                  >
+                    <input
+                      id={`recipe-list-create-${recipe.id}`}
+                      className="control"
+                      value={listDraft.newListName}
+                      placeholder={copy.dashboard.recipes.listOverlayCreatePlaceholder}
+                      onChange={(event) => updateListDraft('newListName', event.target.value)}
+                    />
+                  </Field>
+                  <button
+                    type="button"
+                    className="button button--primary button--block"
+                    onClick={handleAddToList}
+                    disabled={listBusy}
+                  >
+                    {listBusy ? copy.common.loading : copy.dashboard.recipes.addToListConfirmButton}
+                  </button>
+                </div>
+              ) : null}
+            </section>
+
+            <section className="detail-card detail-card--description">
+              <div className="panel-heading">
+                <h3 className="panel-title">{copy.dashboard.recipes.descriptionTitle}</h3>
+              </div>
+              <div className="detail-copy-stack">
+                {descriptionParagraphs.length ? (
+                  descriptionParagraphs.map((paragraph, index) => (
+                    <p key={`${recipe.id}-description-${index + 1}`} className="detail-paragraph">
+                      {paragraph}
+                    </p>
+                  ))
+                ) : (
+                  <p className="detail-paragraph detail-paragraph--muted">{copy.dashboard.recipes.descriptionEmpty}</p>
+                )}
+              </div>
+            </section>
+
+            <section className="detail-card detail-card--instructions">
+              <div className="panel-heading">
+                <h3 className="panel-title">{copy.dashboard.recipes.instructionsTitle}</h3>
+              </div>
+              <ol id={instructionsRegionId} className="recipe-instruction-list">
+                {visibleInstructions.map((step, index) => (
+                  <li key={`${recipe.id}-step-${index + 1}`} className="instruction-step">
+                    <span className="instruction-index">{index + 1}</span>
+                    <span className="instruction-copy">{step}</span>
+                  </li>
+                ))}
+              </ol>
+              {canToggleInstructions ? (
+                <button
+                  type="button"
+                  className="button button--secondary detail-toggle detail-toggle--footer"
+                  aria-expanded={showAllInstructions}
+                  aria-controls={instructionsRegionId}
+                  onClick={() => setShowAllInstructions((current) => !current)}
+                >
+                  {instructionsToggleLabel}
+                </button>
+              ) : null}
+            </section>
           </div>
 
           <div className="recipe-detail-footer">

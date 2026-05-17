@@ -113,6 +113,7 @@ def ingredient_to_out(session: Session, ingredient: RecipeIngredient) -> RecipeI
         quantity=ingredient.quantity,
         unit=ingredient.unit,
         raw_text=ingredient.raw_text,
+        requires_product=ingredient_requires_product(ingredient),
         product_id=ingredient.product_id,
         product_title=product.title if product else None,
         product_url=product.source_url if product else None,

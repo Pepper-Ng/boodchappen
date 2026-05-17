@@ -347,6 +347,11 @@ def test_pantry_ingredients_do_not_block_weekplan_or_grocery_list(client: TestCl
     assert recipe["total_ingredients"] == 1
     assert search_queries == ["biologische citroen"]
 
+    ingredients_by_name = {item["name"]: item for item in recipe["ingredients"]}
+    assert ingredients_by_name["water"]["requires_product"] is False
+    assert ingredients_by_name["milde olijfolie"]["requires_product"] is False
+    assert ingredients_by_name["biologische citroen"]["requires_product"] is True
+
     week_plan_response = client.post(
         "/weekplan",
         headers=headers,

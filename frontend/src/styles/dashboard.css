@@ -303,7 +303,7 @@
 }
 
 .recipe-detail-dialog {
-  width: min(940px, calc(100vw - 2.1rem));
+  width: min(1180px, calc(100vw - 2.1rem));
   max-height: none;
   min-height: 0;
   min-width: 0;
@@ -312,10 +312,9 @@
 }
 
 .recipe-detail-shell,
-.recipe-detail-main,
-.recipe-detail-rail,
 .detail-card,
-.detail-copy-stack {
+.detail-copy-stack,
+.recipe-detail-media-stack {
   display: grid;
   gap: 0.75rem;
 }
@@ -381,22 +380,20 @@
 
 .recipe-detail-layout {
   display: grid;
-  grid-template-columns: minmax(240px, 0.38fr) minmax(0, 0.62fr);
+  grid-template-columns: minmax(260px, 0.92fr) minmax(240px, 0.78fr) minmax(280px, 1fr);
   gap: 0.9rem;
   align-items: start;
   min-width: 0;
 }
 
-.recipe-detail-layout > *,
-.recipe-detail-summary-grid > * {
+.recipe-detail-layout > * {
   min-width: 0;
 }
 
-.recipe-detail-rail {
-  position: static;
+.detail-card--ingredient-pane {
+  grid-column: 1;
+  grid-row: 1 / span 2;
   align-self: start;
-  width: 100%;
-  min-width: 0;
 }
 
 .recipe-detail-cover {
@@ -406,28 +403,20 @@
 
 .recipe-detail-cover--image {
   display: block;
-  width: auto;
-  max-width: 100%;
-  height: auto;
-  aspect-ratio: auto;
-  margin-inline: auto;
+  width: 100%;
+  max-width: none;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
 }
 
 .recipe-detail-cover--fallback {
-  min-height: 12rem;
+  min-height: 14rem;
 }
 
 .recipe-detail-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
-}
-
-.recipe-detail-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-  min-width: 0;
 }
 
 .detail-card {
@@ -443,10 +432,17 @@
 }
 
 .detail-card--planning {
+  grid-column: 2;
+  align-content: start;
+}
+
+.detail-card--description {
+  grid-column: 3;
   align-content: start;
 }
 
 .detail-card--instructions {
+  grid-column: 2 / 4;
   align-content: start;
 }
 
@@ -502,7 +498,7 @@
 
 .ingredient-match-main {
   display: grid;
-  gap: 0.38rem;
+  gap: 0.24rem;
   min-width: 0;
 }
 
@@ -512,15 +508,24 @@
 
 .ingredient-product-name {
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 
 .ingredient-product-trigger {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
   width: fit-content;
-  justify-content: flex-start;
   padding: 0;
+  background: transparent;
+  border: 0;
   color: var(--muted);
   text-align: left;
+  font: inherit;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  cursor: pointer;
 }
 
 .ingredient-product-trigger:hover,
@@ -532,6 +537,24 @@
   color: var(--accent-strong);
   text-decoration: underline;
   text-underline-offset: 0.14em;
+}
+
+.recipe-list-basics-note {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.75rem;
+  border-radius: 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--warning) 28%, var(--border));
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface-strong));
+}
+
+.recipe-list-basics-note strong {
+  color: var(--text-strong);
+}
+
+.recipe-list-basics-note .button {
+  width: auto;
+  justify-self: start;
 }
 
 .ingredient-match-controls {
@@ -696,26 +719,36 @@
 
 @media (max-width: 1240px) {
   .content-grid--three,
-  .week-days,
-  .recipe-detail-summary-grid {
+  .week-days {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .content-grid--two,
-  .recipe-detail-layout,
   .week-layout,
   .shopping-layout {
     grid-template-columns: 1fr;
   }
 
-  .export-card {
-    position: static;
+  .recipe-detail-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .recipe-detail-rail {
+  .detail-card--ingredient-pane {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .detail-card--planning {
+    grid-column: 2;
+  }
+
+  .detail-card--description,
+  .detail-card--instructions {
+    grid-column: 1 / -1;
+  }
+
+  .export-card {
     position: static;
-    max-width: min(100%, 32rem);
-    justify-self: center;
   }
 }
 
@@ -723,8 +756,7 @@
   .content-grid--three,
   .recipe-grid,
   .product-grid,
-  .week-days,
-  .recipe-detail-summary-grid {
+  .week-days {
     grid-template-columns: 1fr;
   }
 
@@ -758,6 +790,18 @@
   .inline-actions,
   .action-row {
     width: 100%;
+  }
+
+  .recipe-detail-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-card--ingredient-pane,
+  .detail-card--planning,
+  .detail-card--description,
+  .detail-card--instructions {
+    grid-column: 1;
+    grid-row: auto;
   }
 
   .toolbar-group {
