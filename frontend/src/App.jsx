@@ -1044,7 +1044,7 @@ function RecipeDetailDialog({
   const visibleInstructions = showAllInstructions ? instructionSteps : instructionSteps.slice(0, 3);
   const sourceUrl = normalizeExternalUrl(recipe.source_url);
   const sourceHost = hostFromUrl(sourceUrl);
-  const recipeLead = descriptionParagraphs.length ? '' : sourceHost || snippet(recipe.instructions, 180);
+  const recipeLead = descriptionParagraphs[0] || sourceHost || snippet(recipe.instructions, 180);
   const pantryIngredients = recipe.ingredients.filter(
     (ingredient) => !ingredient.product_id && ingredient.requires_product === false
   );
@@ -1476,167 +1476,152 @@ function RecipeDetailDialog({
               ) : null}
             </section>
 
-            <section className="detail-card detail-card--planning">
-              <div className="section-title-group">
-                <h3 className="panel-title">{copy.dashboard.recipes.planningTitle}</h3>
-                <p className="panel-copy">{copy.dashboard.recipes.planningCopy}</p>
-              </div>
-              <NoticeBanner notice={planningNotice} />
-              <form className="recipe-plan-grid" onSubmit={handlePlanSubmit}>
-                <Field id={`recipe-detail-day-${recipe.id}`} label={copy.dashboard.week.dayLabel}>
-                  <select
-                    id={`recipe-detail-day-${recipe.id}`}
-                    className="select"
-                    value={planDraft.day}
-                    onChange={(event) => setPlanDraft((current) => ({ ...current, day: event.target.value }))}
-                  >
-                    {dayOrder.map((day) => (
-                      <option key={day} value={day}>
-                        {copy.dashboard.week.days[day]}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field id={`recipe-detail-persons-${recipe.id}`} label={copy.dashboard.week.personsLabel}>
-                  <input
-                    id={`recipe-detail-persons-${recipe.id}`}
-                    className="control"
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={planDraft.persons}
-                    onChange={(event) => {
-                      const nextValue = event.target.value === '' ? '' : Number(event.target.value);
-                      setPlanDraft((current) => ({ ...current, persons: nextValue }));
-                    }}
-                    required
-                  />
-                </Field>
-                <div className="recipe-plan-actions">
-                  <button type="submit" className="button button--primary button--block" disabled={planningBusy}>
-                    {planningBusy ? copy.common.loading : copy.dashboard.week.button}
-                  </button>
-                  <button
-                    type="button"
-                    className="button button--secondary button--block"
-                    onClick={() => {
-                      setListOverlayOpen((current) => !current);
-                      setListNotice({ type: '', text: '' });
-                    }}
-                    disabled={listBusy}
-                  >
-                    {copy.dashboard.recipes.addToListButton}
-                  </button>
+            <div className="recipe-detail-main-column">
+              <section className="detail-card detail-card--planning">
+                <div className="section-title-group">
+                  <h3 className="panel-title">{copy.dashboard.recipes.planningTitle}</h3>
+                  <p className="panel-copy">{copy.dashboard.recipes.planningCopy}</p>
                 </div>
-              </form>
-              {listOverlayOpen ? (
-                <div className="recipe-list-overlay">
-                  <div className="section-title-group">
-                    <h4 className="panel-title">{copy.dashboard.recipes.listOverlayTitle}</h4>
-                    <p className="panel-copy">{copy.dashboard.recipes.listOverlayCopy}</p>
-                  </div>
-                  <NoticeBanner notice={listNotice} />
-                  {pantryIngredientSummary ? (
-                    <div className="recipe-list-basics-note">
-                      <strong>{copy.dashboard.recipes.listOverlayBasicIngredientsTitle}</strong>
-                      <p className="helper-copy">
-                        {replaceTemplate(copy.dashboard.recipes.listOverlayBasicIngredientsCopy, {
-                          ingredients: pantryIngredientSummary,
-                        })}
-                      </p>
-                      <p className="helper-copy">{copy.dashboard.recipes.listOverlayBasicIngredientsHint}</p>
-                      <button
-                        type="button"
-                        className="button button--secondary"
-                        onClick={handleReviewBasicIngredients}
-                      >
-                        {copy.dashboard.recipes.listOverlayBasicIngredientsReview}
-                      </button>
-                    </div>
-                  ) : null}
-                  {groceryLists.length ? (
-                    <Field id={`recipe-list-select-${recipe.id}`} label={copy.dashboard.recipes.listOverlaySelectLabel}>
-                      <select
-                        id={`recipe-list-select-${recipe.id}`}
-                        className="select"
-                        value={listDraft.selectedListId}
-                        onChange={(event) => updateListDraft('selectedListId', event.target.value)}
-                      >
-                        <option value="">{copy.dashboard.recipes.listOverlaySelectLabel}</option>
-                        {groceryLists.map((list) => (
-                          <option key={list.id} value={String(list.id)}>
-                            {list.name}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                  ) : null}
-                  <Field
-                    id={`recipe-list-create-${recipe.id}`}
-                    label={copy.dashboard.recipes.listOverlayCreateLabel}
-                    optionalLabel={copy.common.optional}
-                  >
+                <NoticeBanner notice={planningNotice} />
+                <form className="recipe-plan-grid" onSubmit={handlePlanSubmit}>
+                  <Field id={`recipe-detail-day-${recipe.id}`} label={copy.dashboard.week.dayLabel}>
+                    <select
+                      id={`recipe-detail-day-${recipe.id}`}
+                      className="select"
+                      value={planDraft.day}
+                      onChange={(event) => setPlanDraft((current) => ({ ...current, day: event.target.value }))}
+                    >
+                      {dayOrder.map((day) => (
+                        <option key={day} value={day}>
+                          {copy.dashboard.week.days[day]}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field id={`recipe-detail-persons-${recipe.id}`} label={copy.dashboard.week.personsLabel}>
                     <input
-                      id={`recipe-list-create-${recipe.id}`}
+                      id={`recipe-detail-persons-${recipe.id}`}
                       className="control"
-                      value={listDraft.newListName}
-                      placeholder={copy.dashboard.recipes.listOverlayCreatePlaceholder}
-                      onChange={(event) => updateListDraft('newListName', event.target.value)}
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={planDraft.persons}
+                      onChange={(event) => {
+                        const nextValue = event.target.value === '' ? '' : Number(event.target.value);
+                        setPlanDraft((current) => ({ ...current, persons: nextValue }));
+                      }}
+                      required
                     />
                   </Field>
+                  <div className="recipe-plan-actions">
+                    <button type="submit" className="button button--primary button--block" disabled={planningBusy}>
+                      {planningBusy ? copy.common.loading : copy.dashboard.week.button}
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--secondary button--block"
+                      onClick={() => {
+                        setListOverlayOpen((current) => !current);
+                        setListNotice({ type: '', text: '' });
+                      }}
+                      disabled={listBusy}
+                    >
+                      {copy.dashboard.recipes.addToListButton}
+                    </button>
+                  </div>
+                </form>
+                {listOverlayOpen ? (
+                  <div className="recipe-list-overlay">
+                    <div className="section-title-group">
+                      <h4 className="panel-title">{copy.dashboard.recipes.listOverlayTitle}</h4>
+                      <p className="panel-copy">{copy.dashboard.recipes.listOverlayCopy}</p>
+                    </div>
+                    <NoticeBanner notice={listNotice} />
+                    {pantryIngredientSummary ? (
+                      <div className="recipe-list-basics-note">
+                        <strong>{copy.dashboard.recipes.listOverlayBasicIngredientsTitle}</strong>
+                        <p className="helper-copy">
+                          {replaceTemplate(copy.dashboard.recipes.listOverlayBasicIngredientsCopy, {
+                            ingredients: pantryIngredientSummary,
+                          })}
+                        </p>
+                        <p className="helper-copy">{copy.dashboard.recipes.listOverlayBasicIngredientsHint}</p>
+                        <button
+                          type="button"
+                          className="button button--secondary"
+                          onClick={handleReviewBasicIngredients}
+                        >
+                          {copy.dashboard.recipes.listOverlayBasicIngredientsReview}
+                        </button>
+                      </div>
+                    ) : null}
+                    {groceryLists.length ? (
+                      <Field id={`recipe-list-select-${recipe.id}`} label={copy.dashboard.recipes.listOverlaySelectLabel}>
+                        <select
+                          id={`recipe-list-select-${recipe.id}`}
+                          className="select"
+                          value={listDraft.selectedListId}
+                          onChange={(event) => updateListDraft('selectedListId', event.target.value)}
+                        >
+                          <option value="">{copy.dashboard.recipes.listOverlaySelectLabel}</option>
+                          {groceryLists.map((list) => (
+                            <option key={list.id} value={String(list.id)}>
+                              {list.name}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    ) : null}
+                    <Field
+                      id={`recipe-list-create-${recipe.id}`}
+                      label={copy.dashboard.recipes.listOverlayCreateLabel}
+                      optionalLabel={copy.common.optional}
+                    >
+                      <input
+                        id={`recipe-list-create-${recipe.id}`}
+                        className="control"
+                        value={listDraft.newListName}
+                        placeholder={copy.dashboard.recipes.listOverlayCreatePlaceholder}
+                        onChange={(event) => updateListDraft('newListName', event.target.value)}
+                      />
+                    </Field>
+                    <button
+                      type="button"
+                      className="button button--primary button--block"
+                      onClick={handleAddToList}
+                      disabled={listBusy}
+                    >
+                      {listBusy ? copy.common.loading : copy.dashboard.recipes.addToListConfirmButton}
+                    </button>
+                  </div>
+                ) : null}
+              </section>
+
+              <section className="detail-card detail-card--instructions">
+                <div className="panel-heading">
+                  <h3 className="panel-title">{copy.dashboard.recipes.instructionsTitle}</h3>
+                </div>
+                <ol id={instructionsRegionId} className="recipe-instruction-list">
+                  {visibleInstructions.map((step, index) => (
+                    <li key={`${recipe.id}-step-${index + 1}`} className="instruction-step">
+                      <span className="instruction-index">{index + 1}</span>
+                      <span className="instruction-copy">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+                {canToggleInstructions ? (
                   <button
                     type="button"
-                    className="button button--primary button--block"
-                    onClick={handleAddToList}
-                    disabled={listBusy}
+                    className="button button--secondary detail-toggle detail-toggle--footer"
+                    aria-expanded={showAllInstructions}
+                    aria-controls={instructionsRegionId}
+                    onClick={() => setShowAllInstructions((current) => !current)}
                   >
-                    {listBusy ? copy.common.loading : copy.dashboard.recipes.addToListConfirmButton}
+                    {instructionsToggleLabel}
                   </button>
-                </div>
-              ) : null}
-            </section>
-
-            <section className="detail-card detail-card--description">
-              <div className="panel-heading">
-                <h3 className="panel-title">{copy.dashboard.recipes.descriptionTitle}</h3>
-              </div>
-              <div className="detail-copy-stack">
-                {descriptionParagraphs.length ? (
-                  descriptionParagraphs.map((paragraph, index) => (
-                    <p key={`${recipe.id}-description-${index + 1}`} className="detail-paragraph">
-                      {paragraph}
-                    </p>
-                  ))
-                ) : (
-                  <p className="detail-paragraph detail-paragraph--muted">{copy.dashboard.recipes.descriptionEmpty}</p>
-                )}
-              </div>
-            </section>
-
-            <section className="detail-card detail-card--instructions">
-              <div className="panel-heading">
-                <h3 className="panel-title">{copy.dashboard.recipes.instructionsTitle}</h3>
-              </div>
-              <ol id={instructionsRegionId} className="recipe-instruction-list">
-                {visibleInstructions.map((step, index) => (
-                  <li key={`${recipe.id}-step-${index + 1}`} className="instruction-step">
-                    <span className="instruction-index">{index + 1}</span>
-                    <span className="instruction-copy">{step}</span>
-                  </li>
-                ))}
-              </ol>
-              {canToggleInstructions ? (
-                <button
-                  type="button"
-                  className="button button--secondary detail-toggle detail-toggle--footer"
-                  aria-expanded={showAllInstructions}
-                  aria-controls={instructionsRegionId}
-                  onClick={() => setShowAllInstructions((current) => !current)}
-                >
-                  {instructionsToggleLabel}
-                </button>
-              ) : null}
-            </section>
+                ) : null}
+              </section>
+            </div>
           </div>
 
           <div className="recipe-detail-footer">
