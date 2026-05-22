@@ -380,6 +380,21 @@ def test_find_ah_product_url_uses_normalized_query_when_original_result_is_proce
     assert selected == "https://www.ah.nl/producten/product/wi9837917/ah-terra-witte-bonen"
 
 
+def test_find_ah_product_url_retries_plural_queries_with_singular_normalization(monkeypatch: pytest.MonkeyPatch):
+    async def fake_fetch(url: str) -> str:
+        if url.endswith("query=preien"):
+            return "<div></div>"
+        if url.endswith("query=prei"):
+            return '<a href="/producten/product/wi171425/ah-prei" aria-label="AH Prei, per stuk"></a>'
+        raise AssertionError(url)
+
+    monkeypatch.setattr(services_module, "fetch_ah_html", fake_fetch)
+
+    selected = asyncio.run(find_ah_product_url("preien"))
+
+    assert selected == "https://www.ah.nl/producten/product/wi171425/ah-prei"
+
+
 def test_is_better_product_match_prefers_less_processed_candidates():
     assert is_better_product_match("middelgrote uien", "ah gesneden uien", "ah gele uien") is True
     assert is_better_product_match(

@@ -420,6 +420,8 @@ def normalize_ingredient_name(name: str) -> str:
         words[-1] = "winterpeen"
     elif words[-1] == "citroenen":
         words[-1] = "citroen"
+    elif words[-1] == "preien":
+        words[-1] = "prei"
 
     return " ".join(words)
 
