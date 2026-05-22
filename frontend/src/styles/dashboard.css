@@ -510,6 +510,18 @@
   line-height: 1.45;
 }
 
+.ingredient-product-status {
+  color: var(--warning);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.ingredient-product-note {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .ingredient-product-trigger {
   display: inline-flex;
   align-items: baseline;
@@ -568,6 +580,64 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0.45rem;
+}
+
+.ingredient-suggestions-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+}
+
+.ingredient-suggestions-panel,
+.ingredient-suggestion-list,
+.ingredient-suggestion-group,
+.ingredient-manual-fallback {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.ingredient-suggestion-heading {
+  display: grid;
+  gap: 0.18rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.ingredient-suggestion-heading strong {
+  color: var(--text-strong);
+}
+
+.ingredient-suggestion-card {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.ingredient-suggestion-copy {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.ingredient-suggestion-copy strong,
+.ingredient-suggestion-copy span {
+  white-space: normal;
+}
+
+.ingredient-manual-fallback {
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--border);
+}
+
+@media (min-width: 700px) {
+  .ingredient-suggestion-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
 }
 
 .recipe-detail-footer {

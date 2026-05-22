@@ -12,6 +12,7 @@ import {
   createRecipeImportJob,
   deleteRecipe,
   deleteWeekPlan,
+  getRecipeProductSuggestions,
   getGroceryList,
   importProduct,
   listGroceryLists,
@@ -998,6 +999,41 @@ function LandingScreen({
   );
 }
 
+function getIngredientSuggestionById(ingredients, ingredientId) {
+  return ingredients.find((item) => item.id === ingredientId) || null;
+}
+
+function ingredientUsesSuggestedProduct(ingredient, product) {
+  if (!ingredient?.product_url || !product?.source_url) {
+    return false;
+  }
+
+  return ingredient.product_url === product.source_url;
+}
+
+function getAlternativeSuggestionSections(ingredientSuggestion) {
+  const selectedProductId = ingredientSuggestion?.suggested_product?.ah_product_id;
+
+  return (ingredientSuggestion?.alternative_sections || [])
+    .map((section) => {
+      const seenProductIds = new Set();
+      const products = (section.products || []).filter((product) => {
+        if (!product || seenProductIds.has(product.ah_product_id)) {
+          return false;
+        }
+
+        seenProductIds.add(product.ah_product_id);
+        return product.ah_product_id !== selectedProductId;
+      });
+
+      return {
+        ...section,
+        products,
+      };
+    })
+    .filter((section) => section.products.length);
+}
+
 function RecipeDetailDialog({
   copy,
   recipe,
@@ -1009,6 +1045,7 @@ function RecipeDetailDialog({
   onAddToGroceryList,
   onCreateGroceryList,
   onAutoMatchRecipe,
+  onLoadRecipeProductSuggestions,
   onMatchIngredient,
   onDeleteRecipe,
   returnFocusRef,
@@ -1024,6 +1061,11 @@ function RecipeDetailDialog({
   const [matchingNotice, setMatchingNotice] = useState({ type: '', text: '' });
   const [matchDrafts, setMatchDrafts] = useState({});
   const [openIngredientMatchId, setOpenIngredientMatchId] = useState(null);
+  const [suggestionsState, setSuggestionsState] = useState({
+    status: 'idle',
+    ingredients: [],
+    error: '',
+  });
   const [listOverlayOpen, setListOverlayOpen] = useState(false);
   const [listBusy, setListBusy] = useState(false);
   const [listNotice, setListNotice] = useState({ type: '', text: '' });
@@ -1072,6 +1114,11 @@ function RecipeDetailDialog({
     setMatchingNotice({ type: '', text: '' });
     setMatchDrafts({});
     setOpenIngredientMatchId(null);
+    setSuggestionsState({
+      status: 'idle',
+      ingredients: [],
+      error: '',
+    });
     setListOverlayOpen(false);
     setListBusy(false);
     setListNotice({ type: '', text: '' });
@@ -1082,6 +1129,44 @@ function RecipeDetailDialog({
     });
     setDeleteBusy(false);
   }, [groceryLists, recipe.id, recipe.base_persons]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    setSuggestionsState((current) => ({
+      status: 'loading',
+      ingredients: current.ingredients,
+      error: '',
+    }));
+
+    onLoadRecipeProductSuggestions(recipe.id)
+      .then((payload) => {
+        if (!isActive) {
+          return;
+        }
+
+        setSuggestionsState({
+          status: 'ready',
+          ingredients: Array.isArray(payload?.ingredients) ? payload.ingredients : [],
+          error: '',
+        });
+      })
+      .catch((error) => {
+        if (!isActive) {
+          return;
+        }
+
+        setSuggestionsState({
+          status: 'failed',
+          ingredients: [],
+          error: error.message || copy.dashboard.recipes.ahSuggestionsFailed,
+        });
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [copy.dashboard.recipes.ahSuggestionsFailed, onLoadRecipeProductSuggestions, recipe]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -1323,6 +1408,26 @@ function RecipeDetailDialog({
     }
   }
 
+  async function handleSuggestedMatch(ingredient, product) {
+    if (!product?.source_url) {
+      setMatchingNotice({ type: 'warning', text: copy.dashboard.recipes.matchSaveFailed });
+      return;
+    }
+
+    setMatchingBusy(true);
+    setMatchingNotice({ type: '', text: '' });
+
+    try {
+      await onMatchIngredient(recipe.id, ingredient.id, { ah_url: product.source_url });
+      setMatchingNotice({ type: 'success', text: copy.dashboard.recipes.matchSaved });
+      setOpenIngredientMatchId(null);
+    } catch (error) {
+      setMatchingNotice({ type: 'danger', text: error.message || copy.dashboard.recipes.matchSaveFailed });
+    } finally {
+      setMatchingBusy(false);
+    }
+  }
+
   async function handleDeleteRecipe() {
     if (!window.confirm(copy.dashboard.recipes.deleteConfirm)) {
       return;
@@ -1427,6 +1532,12 @@ function RecipeDetailDialog({
                   );
                   const ingredientMeasure = formatIngredientMeasure(ingredient, locale);
                   const requiresProduct = ingredient.requires_product !== false;
+                  const ingredientSuggestion = getIngredientSuggestionById(suggestionsState.ingredients, ingredient.id);
+                  const suggestedProduct = ingredientSuggestion?.suggested_product || null;
+                  const alternativeSections = getAlternativeSuggestionSections(ingredientSuggestion);
+                  const hasSuggestionChoices = Boolean(suggestedProduct || alternativeSections.length);
+                  const canOpenMatcher = requiresProduct || hasSuggestionChoices || ingredient.product_id;
+                  const isExpanded = openIngredientMatchId === ingredient.id;
 
                   return (
                     <div key={`${recipe.id}-ingredient-${index + 1}`} className="recipe-detail-ingredient">
@@ -1435,51 +1546,134 @@ function RecipeDetailDialog({
                         {ingredientMeasure ? (
                           <span className="ingredient-measurement">{ingredientMeasure}</span>
                         ) : null}
-                        {ingredient.product_id ? (
-                          <span className="ingredient-product-name">
-                            {copy.dashboard.recipes.productLabel}: {ingredient.product_title}
-                          </span>
-                        ) : requiresProduct ? (
+                        {canOpenMatcher ? (
                           <button
                             type="button"
                             className="ingredient-product-trigger"
                             onClick={() => setOpenIngredientMatchId((current) => (current === ingredient.id ? null : ingredient.id))}
                           >
                             <span>{copy.dashboard.recipes.productLabel}:</span>
-                            <span className="ingredient-product-trigger__value">{copy.dashboard.recipes.noMatchLabel}</span>
+                            <span className="ingredient-product-trigger__value">
+                              {ingredient.product_title || copy.dashboard.recipes.noMatchLabel}
+                            </span>
                           </button>
                         ) : null}
+                        {ingredient.product_availability_label ? (
+                          <span className="ingredient-product-status">{ingredient.product_availability_label}</span>
+                        ) : null}
+                        {!requiresProduct && !ingredient.product_id ? (
+                          <span className="ingredient-product-note">{copy.dashboard.recipes.optionalUnmatchedLabel}</span>
+                        ) : null}
                       </div>
-                      {!ingredient.product_id && openIngredientMatchId === ingredient.id ? (
+                      {isExpanded ? (
                         <div className="ingredient-match-controls">
-                          <select
-                            className="select"
-                            value={matchDrafts[ingredient.id]?.productId || ''}
-                            onChange={(event) => updateMatchDraft(ingredient.id, 'productId', event.target.value)}
-                          >
-                            <option value="">{copy.dashboard.recipes.matchSelectExisting}</option>
-                            {products.map((product) => (
-                              <option key={product.id} value={String(product.id)}>
-                                {product.title}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            className="control"
-                            type="url"
-                            inputMode="url"
-                            placeholder={copy.dashboard.recipes.matchUrlPlaceholder}
-                            value={matchDrafts[ingredient.id]?.ahUrl || ''}
-                            onChange={(event) => updateMatchDraft(ingredient.id, 'ahUrl', event.target.value)}
-                          />
-                          <button
-                            type="button"
-                            className="button button--secondary"
-                            onClick={() => handleManualMatch(ingredient)}
-                            disabled={matchingBusy}
-                          >
-                            {copy.dashboard.recipes.matchButton}
-                          </button>
+                          {suggestionsState.status === 'loading' ? (
+                            <div className="ingredient-suggestions-state">
+                              <span className="button-inline-spinner" aria-hidden="true" />
+                              <span>{copy.dashboard.recipes.ahSuggestionsLoading}</span>
+                            </div>
+                          ) : null}
+                          {suggestionsState.status === 'failed' ? (
+                            <div className="alert alert--danger">{suggestionsState.error}</div>
+                          ) : null}
+                          {suggestionsState.status === 'ready' && hasSuggestionChoices ? (
+                            <div className="ingredient-suggestions-panel">
+                              {suggestedProduct ? (
+                                <div className="ingredient-suggestion-group">
+                                  <div className="ingredient-suggestion-heading">
+                                    <strong>{copy.dashboard.recipes.ahSuggestedTitle}</strong>
+                                  </div>
+                                  <div className="ingredient-suggestion-card">
+                                    <div className="ingredient-suggestion-copy">
+                                      <strong>{suggestedProduct.title}</strong>
+                                      <span>{suggestedProduct.unit || copy.dashboard.products.unitLabel}</span>
+                                      {suggestedProduct.availability_label ? (
+                                        <span className="ingredient-product-status">{suggestedProduct.availability_label}</span>
+                                      ) : null}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="button button--secondary"
+                                      onClick={() => handleSuggestedMatch(ingredient, suggestedProduct)}
+                                      disabled={matchingBusy || ingredientUsesSuggestedProduct(ingredient, suggestedProduct)}
+                                    >
+                                      {ingredientUsesSuggestedProduct(ingredient, suggestedProduct)
+                                        ? copy.dashboard.recipes.currentSuggestedProductButton
+                                        : copy.dashboard.recipes.useSuggestedProductButton}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : null}
+                              {alternativeSections.map((section, sectionIndex) => (
+                                <div key={`${ingredient.id}-section-${sectionIndex}`} className="ingredient-suggestion-group">
+                                  <div className="ingredient-suggestion-heading">
+                                    <strong>{section.title || copy.dashboard.recipes.alternativeProductsTitle}</strong>
+                                    {section.description ? <span>{section.description}</span> : null}
+                                  </div>
+                                  <div className="ingredient-suggestion-list">
+                                    {section.products.map((product) => (
+                                      <div key={`${ingredient.id}-${product.ah_product_id}`} className="ingredient-suggestion-card">
+                                        <div className="ingredient-suggestion-copy">
+                                          <strong>{product.title}</strong>
+                                          <span>{product.unit || copy.dashboard.products.unitLabel}</span>
+                                          {product.availability_label ? (
+                                            <span className="ingredient-product-status">{product.availability_label}</span>
+                                          ) : null}
+                                        </div>
+                                        <button
+                                          type="button"
+                                          className="button button--secondary"
+                                          onClick={() => handleSuggestedMatch(ingredient, product)}
+                                          disabled={matchingBusy || ingredientUsesSuggestedProduct(ingredient, product)}
+                                        >
+                                          {ingredientUsesSuggestedProduct(ingredient, product)
+                                            ? copy.dashboard.recipes.currentSuggestedProductButton
+                                            : copy.dashboard.recipes.useSuggestedProductButton}
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                          {suggestionsState.status === 'ready' && !hasSuggestionChoices ? (
+                            <p className="helper-copy">{copy.dashboard.recipes.ahSuggestionsEmpty}</p>
+                          ) : null}
+                          <div className="ingredient-manual-fallback">
+                            <div className="ingredient-suggestion-heading">
+                              <strong>{copy.dashboard.recipes.manualFallbackTitle}</strong>
+                              <span>{copy.dashboard.recipes.manualFallbackCopy}</span>
+                            </div>
+                            <select
+                              className="select"
+                              value={matchDrafts[ingredient.id]?.productId || ''}
+                              onChange={(event) => updateMatchDraft(ingredient.id, 'productId', event.target.value)}
+                            >
+                              <option value="">{copy.dashboard.recipes.matchSelectExisting}</option>
+                              {products.map((product) => (
+                                <option key={product.id} value={String(product.id)}>
+                                  {product.title}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              className="control"
+                              type="url"
+                              inputMode="url"
+                              placeholder={copy.dashboard.recipes.matchUrlPlaceholder}
+                              value={matchDrafts[ingredient.id]?.ahUrl || ''}
+                              onChange={(event) => updateMatchDraft(ingredient.id, 'ahUrl', event.target.value)}
+                            />
+                            <button
+                              type="button"
+                              className="button button--secondary"
+                              onClick={() => handleManualMatch(ingredient)}
+                              disabled={matchingBusy}
+                            >
+                              {copy.dashboard.recipes.matchButton}
+                            </button>
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -1840,6 +2034,7 @@ function RecipesSection({
   onAddRecipeToShoppingList,
   onCreateShoppingList,
   onAutoMatchRecipe,
+  onLoadRecipeProductSuggestions,
   onMatchIngredient,
   onDeleteRecipe,
 }) {
@@ -1944,6 +2139,7 @@ function RecipesSection({
           onAddToGroceryList={onAddRecipeToShoppingList}
           onCreateGroceryList={onCreateShoppingList}
           onAutoMatchRecipe={onAutoMatchRecipe}
+          onLoadRecipeProductSuggestions={onLoadRecipeProductSuggestions}
           onMatchIngredient={onMatchIngredient}
           onDeleteRecipe={onDeleteRecipe}
           returnFocusRef={detailTriggerRef}
@@ -2643,6 +2839,7 @@ function DashboardScreen({
   onAddRecipeToShoppingList,
   onCreateShoppingList,
   onAutoMatchRecipe,
+  onLoadRecipeProductSuggestions,
   onMatchIngredient,
   onDeleteRecipe,
   productUrl,
@@ -2717,6 +2914,7 @@ function DashboardScreen({
         onAddRecipeToShoppingList={onAddRecipeToShoppingList}
         onCreateShoppingList={onCreateShoppingList}
         onAutoMatchRecipe={onAutoMatchRecipe}
+        onLoadRecipeProductSuggestions={onLoadRecipeProductSuggestions}
         onMatchIngredient={onMatchIngredient}
         onDeleteRecipe={onDeleteRecipe}
       />
@@ -3253,6 +3451,10 @@ function App() {
     await refreshWorkspace(session.token);
   }
 
+  async function onLoadRecipeProductSuggestions(recipeId) {
+    return getRecipeProductSuggestions(session.token, recipeId);
+  }
+
   async function onMatchIngredient(recipeId, ingredientId, payload) {
     await matchRecipeIngredient(session.token, recipeId, ingredientId, payload);
     await refreshWorkspace(session.token);
@@ -3485,6 +3687,7 @@ function App() {
         onAddRecipeToShoppingList={onAddRecipeToShoppingList}
         onCreateShoppingList={onCreateShoppingList}
         onAutoMatchRecipe={onAutoMatchRecipe}
+        onLoadRecipeProductSuggestions={onLoadRecipeProductSuggestions}
         onMatchIngredient={onMatchIngredient}
         onDeleteRecipe={onDeleteRecipe}
         productUrl={productUrl}

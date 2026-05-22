@@ -222,6 +222,10 @@ export function autoMatchRecipe(token, recipeId) {
   });
 }
 
+export function getRecipeProductSuggestions(token, recipeId) {
+  return request(`/recipes/${recipeId}/product-suggestions`, { token });
+}
+
 export function matchRecipeIngredient(token, recipeId, ingredientId, payload) {
   return request(`/recipes/${recipeId}/ingredients/${ingredientId}/match`, {
     token,
