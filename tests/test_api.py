@@ -175,7 +175,7 @@ def test_recipe_import_auto_imports_matching_products(client: TestClient, monkey
     assert len(products.json()) == 1
 
 
-def test_recipe_import_uses_native_alternative_product_suggestions(
+def test_recipe_import_keeps_optional_native_suggestions_unmatched(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -283,11 +283,18 @@ def test_recipe_import_uses_native_alternative_product_suggestions(
     recipe = response.json()
 
     ingredients_by_name = {item["name"]: item for item in recipe["ingredients"]}
+    assert recipe["matched_ingredients"] == 1
+    assert recipe["total_ingredients"] == 1
     assert ingredients_by_name["milde olijfolie"]["requires_product"] is False
-    assert ingredients_by_name["milde olijfolie"]["product_title"] == "AH Olijfolie mild"
-    assert ingredients_by_name["milde olijfolie"]["product_availability_label"] == "Uit het assortiment"
-    assert ingredients_by_name["milde olijfolie"]["product_is_orderable"] is False
+    assert ingredients_by_name["milde olijfolie"]["product_id"] is None
+    assert ingredients_by_name["milde olijfolie"]["product_title"] is None
+    assert ingredients_by_name["milde olijfolie"]["product_availability_label"] is None
+    assert ingredients_by_name["milde olijfolie"]["product_is_orderable"] is None
     assert ingredients_by_name["rode linzen"]["product_title"] == "AH Terra Biologisch rode linzen"
+
+    products = client.get("/products", headers=headers)
+    assert products.status_code == 200, products.text
+    assert [product["title"] for product in products.json()] == ["AH Terra Biologisch rode linzen"]
 
 
 def test_recipe_product_suggestions_endpoint_returns_status_and_alternatives(
@@ -432,7 +439,7 @@ def test_recipe_product_suggestions_endpoint_returns_status_and_alternatives(
 
     assert suggestions["recipe_id"] == recipe_id
     ingredients_by_name = {item["name"]: item for item in suggestions["ingredients"]}
-    assert ingredients_by_name["zonnebloemolie"]["product_availability_label"] == "Uit het assortiment"
+    assert ingredients_by_name["zonnebloemolie"]["product_availability_label"] is None
     assert ingredients_by_name["zonnebloemolie"]["suggested_product"]["availability_label"] == "Uit het assortiment"
     assert ingredients_by_name["zonnebloemolie"]["suggested_product_source"] == "alternative"
     assert ingredients_by_name["zonnebloemolie"]["alternative_sections"][0]["products"][1]["ah_product_id"] == 54443
@@ -771,7 +778,7 @@ def test_native_optional_ingredients_use_requires_product_compatibility_field(
     assert recipe["is_fully_matched"] is True
     assert recipe["matched_ingredients"] == 1
     assert recipe["total_ingredients"] == 1
-    assert search_queries == ["verse basilicum"]
+    assert search_queries == []
 
     ingredients_by_name = {item["name"]: item for item in recipe["ingredients"]}
     assert ingredients_by_name["verse basilicum"]["requires_product"] is False

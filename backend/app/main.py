@@ -440,6 +440,7 @@ async def auto_match_recipe_ingredients(
 
     native_suggestion_by_ingredient_id: dict[int, dict] = {}
     native_product_by_ingredient_id: dict[int, Product] = {}
+    native_optional_ingredient_ids: set[int] = set()
     if recipe.native_recipe_id:
         imported_native_products: dict[str, Product] = {}
         try:
@@ -456,6 +457,10 @@ async def auto_match_recipe_ingredients(
             target_ingredient.native_ingredient_id = suggestion.get("ingredient_id")
             target_ingredient.native_optional = suggestion.get("optional")
             session.add(target_ingredient)
+
+            if target_ingredient.native_optional:
+                native_optional_ingredient_ids.add(target_ingredient.id)
+                continue
 
             suggested_product_id = suggestion.get("product_id")
             if suggested_product_id is None:
@@ -486,6 +491,9 @@ async def auto_match_recipe_ingredients(
     matched = 0
     unmatched = 0
     for ingredient in ingredients:
+        if ingredient.id in native_optional_ingredient_ids:
+            continue
+
         if ingredient.id in native_product_by_ingredient_id:
             if ingredient_requires_product(ingredient):
                 matched += 1
