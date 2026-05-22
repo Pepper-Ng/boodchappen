@@ -35,21 +35,29 @@ from .schemas import (
     RecipeImportIn,
     RecipeIngredientMatchIn,
     RecipeIngredientOut,
+    RecipeIngredientSuggestionOut,
+    RecipeProductSuggestionsOut,
     RecipeOut,
     RegisterIn,
+    SuggestedProductOut,
+    SuggestedProductSectionOut,
     TokenOut,
     UserOut,
     WeekPlanIn,
     WeekPlanOut,
 )
 from .services import (
+    build_ah_product_url,
+    build_product_data_from_suggested_product,
     choose_display_unit,
     convert_to_base_unit,
+    fetch_ah_recipe_product_suggestions,
     find_ah_product_url,
     import_ah_product,
     is_better_product_match,
     is_pantry_ingredient,
     match_product_to_ingredient,
+    normalize_ingredient_name,
     normalize_product_title,
     scrape_ah_recipe,
     should_skip_product_matching,
@@ -102,6 +110,9 @@ def product_to_out(product: Product) -> ProductOut:
         price=product.price,
         unit=product.unit,
         description=product.description,
+        availability_label=product.availability_label,
+        is_orderable=product.is_orderable,
+        is_visible=product.is_visible,
         created_at=product.created_at,
     )
 
@@ -119,6 +130,64 @@ def ingredient_to_out(session: Session, ingredient: RecipeIngredient) -> RecipeI
         product_id=ingredient.product_id,
         product_title=product.title if product else None,
         product_url=product.source_url if product else None,
+        product_availability_label=product.availability_label if product else None,
+        product_is_orderable=product.is_orderable if product else None,
+        product_is_visible=product.is_visible if product else None,
+    )
+
+
+def suggested_product_to_out(product: dict[str, object] | None) -> SuggestedProductOut | None:
+    if not isinstance(product, dict):
+        return None
+
+    return SuggestedProductOut(
+        ah_product_id=int(product["ah_product_id"]),
+        ah_id=str(product["ah_id"]),
+        title=str(product["title"]),
+        source_url=str(product["source_url"]),
+        quantity=int(product.get("quantity") or 1),
+        image=str(product["image"]) if product.get("image") else None,
+        price=float(product["price"]) if product.get("price") is not None else None,
+        unit=str(product["unit"]) if product.get("unit") else None,
+        availability_label=str(product["availability_label"]) if product.get("availability_label") else None,
+        is_orderable=bool(product["is_orderable"]) if product.get("is_orderable") is not None else None,
+        is_visible=bool(product["is_visible"]) if product.get("is_visible") is not None else None,
+    )
+
+
+def recipe_ingredient_suggestion_to_out(
+    session: Session,
+    ingredient: RecipeIngredient,
+    suggestion: dict[str, object] | None,
+) -> RecipeIngredientSuggestionOut:
+    ingredient_out = ingredient_to_out(session, ingredient)
+    alternative_sections: list[SuggestedProductSectionOut] = []
+    if isinstance(suggestion, dict):
+        for section in suggestion.get("alternative_sections") or []:
+            if not isinstance(section, dict):
+                continue
+            products = [
+                suggested_product_to_out(product)
+                for product in section.get("products") or []
+                if suggested_product_to_out(product) is not None
+            ]
+            if not products:
+                continue
+            alternative_sections.append(
+                SuggestedProductSectionOut(
+                    title=str(section["title"]) if section.get("title") else None,
+                    description=str(section["description"]) if section.get("description") else None,
+                    products=products,
+                )
+            )
+
+    return RecipeIngredientSuggestionOut(
+        **ingredient_out.model_dump(),
+        native_ingredient_id=ingredient.native_ingredient_id,
+        optional=ingredient.native_optional,
+        suggested_product_source=str(suggestion["product_source"]) if isinstance(suggestion, dict) and suggestion.get("product_source") else None,
+        suggested_product=suggested_product_to_out(suggestion.get("product")) if isinstance(suggestion, dict) else None,
+        alternative_sections=alternative_sections,
     )
 
 
@@ -239,6 +308,8 @@ def ensure_owned_recipe_ingredient(session: Session, user_id: int, recipe_id: in
 
 
 def ingredient_requires_product(ingredient: RecipeIngredient) -> bool:
+    if ingredient.native_optional is not None:
+        return not ingredient.native_optional
     return not is_pantry_ingredient(ingredient.normalized_name)
 
 
@@ -258,6 +329,50 @@ def recipe_has_full_product_matching(session: Session, recipe_id: int) -> bool:
     ).all()
     matched_ingredients, total_ingredients = recipe_matching_counts(ingredients)
     return matched_ingredients == total_ingredients
+
+
+def map_native_suggestions_to_ingredients(
+    ingredients: list[RecipeIngredient],
+    native_suggestions: list[dict[str, object]],
+) -> dict[int, dict[str, object]]:
+    mapped_suggestions: dict[int, dict[str, object]] = {}
+    used_suggestion_indexes: set[int] = set()
+
+    suggestion_index_by_native_ingredient_id = {
+        int(suggestion["ingredient_id"]): index
+        for index, suggestion in enumerate(native_suggestions)
+        if suggestion.get("ingredient_id") is not None
+    }
+    for ingredient in ingredients:
+        if ingredient.native_ingredient_id is None:
+            continue
+        suggestion_index = suggestion_index_by_native_ingredient_id.get(ingredient.native_ingredient_id)
+        if suggestion_index is None:
+            continue
+        mapped_suggestions[ingredient.id] = native_suggestions[suggestion_index]
+        used_suggestion_indexes.add(suggestion_index)
+
+    ingredient_candidates_by_name: dict[str, list[RecipeIngredient]] = {}
+    for ingredient in ingredients:
+        if ingredient.id in mapped_suggestions:
+            continue
+        ingredient_candidates_by_name.setdefault(ingredient.normalized_name, []).append(ingredient)
+
+    for suggestion_index, suggestion in enumerate(native_suggestions):
+        if suggestion_index in used_suggestion_indexes:
+            continue
+        normalized_suggestion_name = normalize_ingredient_name(str(suggestion.get("ingredient_name") or ""))
+        candidates = ingredient_candidates_by_name.get(normalized_suggestion_name, [])
+        target_ingredient = next(
+            (candidate for candidate in candidates if candidate.id not in mapped_suggestions),
+            None,
+        )
+        if target_ingredient is None:
+            continue
+        mapped_suggestions[target_ingredient.id] = suggestion
+        used_suggestion_indexes.add(suggestion_index)
+
+    return mapped_suggestions
 
 
 def pick_username(session: Session, email: str, requested_username: str | None) -> str:
@@ -293,6 +408,12 @@ def upsert_imported_product(session: Session, owner_id: int, product_data: dict)
         product.price = product_data.get("price")
         product.unit = product_data.get("unit")
         product.description = product_data.get("description")
+        if product_data.get("availability_label") is not None or product.availability_label is None:
+            product.availability_label = product_data.get("availability_label")
+        if product_data.get("is_orderable") is not None or product.is_orderable is None:
+            product.is_orderable = product_data.get("is_orderable")
+        if product_data.get("is_visible") is not None or product.is_visible is None:
+            product.is_visible = product_data.get("is_visible")
 
     session.add(product)
     session.commit()
@@ -307,15 +428,69 @@ async def auto_match_recipe_ingredients(
     *,
     rematch_existing: bool = False,
 ) -> dict[str, int]:
+    recipe = session.get(Recipe, recipe_id)
+    if recipe is None:
+        return {"matched": 0, "unmatched": 0}
+
     products = session.exec(select(Product).where(Product.owner_id == owner_id)).all()
     products_by_id = {product.id: product for product in products}
     ingredients = session.exec(
         select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe_id)
     ).all()
 
+    native_suggestion_by_ingredient_id: dict[int, dict] = {}
+    native_product_by_ingredient_id: dict[int, Product] = {}
+    if recipe.native_recipe_id:
+        imported_native_products: dict[str, Product] = {}
+        try:
+            native_suggestions = await fetch_ah_recipe_product_suggestions(recipe.native_recipe_id, recipe.base_persons)
+        except Exception:
+            native_suggestions = []
+
+        native_suggestion_by_ingredient_id = map_native_suggestions_to_ingredients(ingredients, native_suggestions)
+
+        for target_ingredient in ingredients:
+            suggestion = native_suggestion_by_ingredient_id.get(target_ingredient.id)
+            if suggestion is None:
+                continue
+            target_ingredient.native_ingredient_id = suggestion.get("ingredient_id")
+            target_ingredient.native_optional = suggestion.get("optional")
+            session.add(target_ingredient)
+
+            suggested_product_id = suggestion.get("product_id")
+            if suggested_product_id is None:
+                continue
+
+            suggested_product = suggestion.get("product") if isinstance(suggestion, dict) else None
+            product_url = None
+            if isinstance(suggested_product, dict):
+                product_url = suggested_product.get("source_url")
+            if not product_url:
+                product_url = build_ah_product_url(suggested_product_id)
+            native_product = imported_native_products.get(product_url)
+            if native_product is None:
+                if isinstance(suggested_product, dict):
+                    product_data = build_product_data_from_suggested_product(suggested_product)
+                else:
+                    product_data = await import_ah_product(product_url)
+                native_product = upsert_imported_product(session, owner_id, product_data)
+                imported_native_products[product_url] = native_product
+                if native_product.id not in products_by_id:
+                    products.append(native_product)
+                    products_by_id[native_product.id] = native_product
+
+            target_ingredient.product_id = native_product.id
+            native_product_by_ingredient_id[target_ingredient.id] = native_product
+            session.add(target_ingredient)
+
     matched = 0
     unmatched = 0
     for ingredient in ingredients:
+        if ingredient.id in native_product_by_ingredient_id:
+            if ingredient_requires_product(ingredient):
+                matched += 1
+            continue
+
         matched_product = None
         search_query = ingredient.name or ingredient.normalized_name or ingredient.raw_text
         search_product = None
@@ -369,6 +544,7 @@ async def save_recipe_import(session: Session, owner_id: int, source_url: str, p
             owner_id=owner_id,
             source_url=source_url,
             external_id=payload.get("external_id"),
+            native_recipe_id=payload.get("native_recipe_id"),
             name=payload["name"],
             normalized_name=payload["normalized_name"],
             description=payload.get("description"),
@@ -388,6 +564,7 @@ async def save_recipe_import(session: Session, owner_id: int, source_url: str, p
                 preserved_matches.setdefault(ingredient.normalized_name, []).append(ingredient.product_id)
 
         recipe.external_id = payload.get("external_id")
+        recipe.native_recipe_id = payload.get("native_recipe_id")
         recipe.name = payload["name"]
         recipe.normalized_name = payload["normalized_name"]
         recipe.description = payload.get("description")
@@ -415,6 +592,8 @@ async def save_recipe_import(session: Session, owner_id: int, source_url: str, p
                 quantity=ingredient["quantity"],
                 unit=ingredient["unit"],
                 raw_text=ingredient["raw_text"],
+                native_ingredient_id=ingredient.get("native_ingredient_id"),
+                native_optional=ingredient.get("native_optional"),
                 product_id=product_id,
             )
         )
@@ -820,6 +999,39 @@ def list_recipes(session: Session = Depends(get_session), user: User = Depends(c
 def get_recipe(recipe_id: int, session: Session = Depends(get_session), user: User = Depends(current_user)):
     recipe = ensure_owned_recipe(session, user.id, recipe_id)
     return recipe_to_out(session, recipe)
+
+
+@app.get("/recipes/{recipe_id}/product-suggestions", response_model=RecipeProductSuggestionsOut)
+async def get_recipe_product_suggestions(
+    recipe_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    recipe = ensure_owned_recipe(session, user.id, recipe_id)
+    ingredients = session.exec(
+        select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe.id).order_by(RecipeIngredient.id)
+    ).all()
+
+    native_suggestion_by_ingredient_id: dict[int, dict[str, object]] = {}
+    if recipe.native_recipe_id:
+        try:
+            native_suggestions = await fetch_ah_recipe_product_suggestions(recipe.native_recipe_id, recipe.base_persons)
+        except Exception:
+            native_suggestions = []
+        native_suggestion_by_ingredient_id = map_native_suggestions_to_ingredients(ingredients, native_suggestions)
+
+    return RecipeProductSuggestionsOut(
+        recipe_id=recipe.id,
+        base_persons=recipe.base_persons,
+        ingredients=[
+            recipe_ingredient_suggestion_to_out(
+                session,
+                ingredient,
+                native_suggestion_by_ingredient_id.get(ingredient.id),
+            )
+            for ingredient in ingredients
+        ],
+    )
 
 
 @app.delete("/recipes/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)

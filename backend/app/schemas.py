@@ -56,6 +56,9 @@ class ProductOut(BaseModel):
     price: Optional[float]
     unit: Optional[str]
     description: Optional[str]
+    availability_label: Optional[str]
+    is_orderable: Optional[bool]
+    is_visible: Optional[bool]
     created_at: datetime
 
 
@@ -79,6 +82,43 @@ class RecipeIngredientOut(BaseModel):
     product_id: Optional[int]
     product_title: Optional[str]
     product_url: Optional[str]
+    product_availability_label: Optional[str]
+    product_is_orderable: Optional[bool]
+    product_is_visible: Optional[bool]
+
+
+class SuggestedProductOut(BaseModel):
+    ah_product_id: int
+    ah_id: str
+    title: str
+    source_url: str
+    quantity: int
+    image: Optional[str]
+    price: Optional[float]
+    unit: Optional[str]
+    availability_label: Optional[str]
+    is_orderable: Optional[bool]
+    is_visible: Optional[bool]
+
+
+class SuggestedProductSectionOut(BaseModel):
+    title: Optional[str]
+    description: Optional[str]
+    products: list[SuggestedProductOut]
+
+
+class RecipeIngredientSuggestionOut(RecipeIngredientOut):
+    native_ingredient_id: Optional[int]
+    optional: Optional[bool]
+    suggested_product_source: Optional[Literal["primary", "alternative"]]
+    suggested_product: Optional[SuggestedProductOut]
+    alternative_sections: list[SuggestedProductSectionOut]
+
+
+class RecipeProductSuggestionsOut(BaseModel):
+    recipe_id: int
+    base_persons: int
+    ingredients: list[RecipeIngredientSuggestionOut]
 
 
 class RecipeOut(BaseModel):

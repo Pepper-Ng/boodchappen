@@ -25,6 +25,9 @@ class Product(SQLModel, table=True):
     price: Optional[float] = None
     unit: Optional[str] = None
     description: Optional[str] = None
+    availability_label: Optional[str] = None
+    is_orderable: Optional[bool] = None
+    is_visible: Optional[bool] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -33,6 +36,7 @@ class Recipe(SQLModel, table=True):
     owner_id: int = Field(foreign_key="user.id", index=True)
     source_url: str = Field(index=True)
     external_id: Optional[str] = Field(default=None, index=True)
+    native_recipe_id: Optional[int] = Field(default=None, index=True)
     name: str
     normalized_name: str = Field(index=True)
     description: Optional[str] = None
@@ -50,6 +54,8 @@ class RecipeIngredient(SQLModel, table=True):
     quantity: float = 0.0
     unit: str = "stuk"
     raw_text: str
+    native_ingredient_id: Optional[int] = Field(default=None, index=True)
+    native_optional: Optional[bool] = None
     product_id: Optional[int] = Field(default=None, foreign_key="product.id")
 
 

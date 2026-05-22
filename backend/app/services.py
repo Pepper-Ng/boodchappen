@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from typing import Any
 from urllib.parse import quote
 
@@ -17,11 +18,99 @@ AH_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8",
 }
+AH_API_HEADERS = {
+        "User-Agent": AH_HEADERS["User-Agent"],
+        "Accept": "application/json",
+        "Accept-Language": AH_HEADERS["Accept-Language"],
+        "Origin": "https://www.ah.nl",
+        "Referer": "https://www.ah.nl/",
+}
+AH_API_BASE_URL = "https://api.ah.nl"
+AH_ANONYMOUS_TOKEN_URL = f"{AH_API_BASE_URL}/mobile-auth/v1/auth/token/anonymous"
+AH_GRAPHQL_URL = f"{AH_API_BASE_URL}/graphql"
+AH_ANONYMOUS_CLIENT_ID = "appie"
+AH_RECIPE_PRODUCT_SUGGESTIONS_QUERY = """
+query RecipeProductSuggestions($recipeId: Int!, $numberOfServings: Int!) {
+    recipeProductSuggestionsV2(
+        options: {
+            recipeId: $recipeId
+            numberOfServings: $numberOfServings
+            productIdOverride: []
+            ingredientsToOverride: []
+        }
+    ) {
+        optional
+        ingredient {
+            id
+            name
+            quantityFloat
+            quantityUnit
+            rawIngredientText
+        }
+        productSuggestion {
+            quantity
+            product {
+                id
+                title
+                webPath
+                salesUnitSize
+                imagePack(angles: [ANGLE_2D1, HERO]) {
+                    small {
+                        url
+                    }
+                }
+                priceV2 {
+                    now {
+                        amount
+                    }
+                }
+                availability {
+                    availabilityLabel
+                    isOrderable
+                    isVisible
+                }
+            }
+        }
+        alternativeSections {
+            title
+            description
+            productSuggestions {
+                quantity
+                product {
+                    id
+                    title
+                    webPath
+                    salesUnitSize
+                    imagePack(angles: [ANGLE_2D1, HERO]) {
+                        small {
+                            url
+                        }
+                    }
+                    priceV2 {
+                        now {
+                            amount
+                        }
+                    }
+                    availability {
+                        availabilityLabel
+                        isOrderable
+                        isVisible
+                    }
+                }
+            }
+        }
+    }
+}
+"""
 
 PRODUCT_URL_RE = re.compile(r"/producten/product/(?P<id>[^/]+)")
 RECIPE_URL_RE = re.compile(r"/allerhande/recept/(?P<id>[^/]+)")
+NUMERIC_RECIPE_ID_RE = re.compile(r'\\?"recipeId\\?":(?P<id>\d+)')
 ALBERT_HEIJN_HOST = "ah.nl"
 MAX_AH_REDIRECTS = 5
+
+_AH_ANONYMOUS_TOKEN: str | None = None
+_AH_ANONYMOUS_TOKEN_EXPIRES_AT = 0.0
 
 UNIT_ALIASES = {
     "g": "g",
@@ -239,6 +328,13 @@ def extract_ah_recipe_id(url: str) -> str | None:
     return None
 
 
+def extract_ah_numeric_recipe_id(html: str) -> int | None:
+    match = NUMERIC_RECIPE_ID_RE.search(html)
+    if not match:
+        return None
+    return int(match.group("id"))
+
+
 def is_supported_ah_host(host: str | None) -> bool:
     if not host:
         return False
@@ -260,6 +356,27 @@ def validate_ah_url(url: str) -> str:
         raise ValueError("Only standard Albert Heijn web URLs are supported")
 
     return str(parsed)
+
+
+def build_ah_product_url(product_id: str | int) -> str:
+    normalized_product_id = str(product_id).strip()
+    if not normalized_product_id:
+        raise ValueError("Albert Heijn product id is required")
+    if not normalized_product_id.startswith("wi"):
+        normalized_product_id = f"wi{normalized_product_id}"
+    return f"https://www.ah.nl/producten/product/{normalized_product_id}"
+
+
+def build_ah_web_url(path: str | None, *, fallback_product_id: str | int | None = None) -> str | None:
+    normalized_path = normalize_space(str(path or ""))
+    if normalized_path:
+        if normalized_path.startswith("http://") or normalized_path.startswith("https://"):
+            return normalized_path
+        if normalized_path.startswith("/"):
+            return f"https://www.ah.nl{normalized_path}"
+    if fallback_product_id is None:
+        return None
+    return build_ah_product_url(fallback_product_id)
 
 
 def normalize_product_title(title: str) -> str:
@@ -566,6 +683,71 @@ def parse_ah_product_html(html: str, url: str) -> dict[str, Any]:
         "price": price,
         "unit": unit,
         "description": description,
+        "availability_label": None,
+        "is_orderable": None,
+        "is_visible": None,
+    }
+
+
+def parse_ah_suggested_product(suggestion: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(suggestion, dict):
+        return None
+
+    product = suggestion.get("product")
+    if not isinstance(product, dict):
+        return None
+
+    product_id = product.get("id")
+    if product_id is None:
+        return None
+
+    availability = product.get("availability") if isinstance(product.get("availability"), dict) else {}
+    image_pack = product.get("imagePack") if isinstance(product.get("imagePack"), list) else []
+    image_url = None
+    for image in image_pack:
+        if not isinstance(image, dict):
+            continue
+        small_image = image.get("small")
+        if isinstance(small_image, dict) and small_image.get("url"):
+            image_url = str(small_image.get("url"))
+            break
+
+    price_block = product.get("priceV2") if isinstance(product.get("priceV2"), dict) else {}
+    now_block = price_block.get("now") if isinstance(price_block.get("now"), dict) else {}
+    amount = now_block.get("amount")
+
+    title = normalize_space(str(product.get("title") or ""))
+    source_url = build_ah_web_url(product.get("webPath"), fallback_product_id=product_id)
+    ah_id = f"wi{int(product_id)}"
+
+    return {
+        "ah_product_id": int(product_id),
+        "ah_id": ah_id,
+        "title": title,
+        "source_url": source_url,
+        "quantity": int(suggestion.get("quantity") or 1),
+        "image": image_url,
+        "price": float(amount) if amount is not None else None,
+        "unit": normalize_space(str(product.get("salesUnitSize") or "")) or None,
+        "availability_label": normalize_space(str(availability.get("availabilityLabel") or "")) or None,
+        "is_orderable": bool(availability.get("isOrderable")) if availability.get("isOrderable") is not None else None,
+        "is_visible": bool(availability.get("isVisible")) if availability.get("isVisible") is not None else None,
+    }
+
+
+def build_product_data_from_suggested_product(suggested_product: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "ah_id": suggested_product["ah_id"],
+        "source_url": suggested_product["source_url"],
+        "title": suggested_product["title"],
+        "normalized_title": normalize_product_title(suggested_product["title"]),
+        "image": suggested_product.get("image"),
+        "price": suggested_product.get("price"),
+        "unit": suggested_product.get("unit"),
+        "description": None,
+        "availability_label": suggested_product.get("availability_label"),
+        "is_orderable": suggested_product.get("is_orderable"),
+        "is_visible": suggested_product.get("is_visible"),
     }
 
 
@@ -600,6 +782,7 @@ def parse_ah_recipe_html(html: str, url: str) -> dict[str, Any]:
 
     return {
         "external_id": extract_ah_recipe_id(url),
+        "native_recipe_id": extract_ah_numeric_recipe_id(html),
         "name": name,
         "normalized_name": normalize_recipe_name(name),
         "description": description,
@@ -646,6 +829,142 @@ def parse_ah_product_search_results(html: str) -> list[dict[str, str]]:
         })
 
     return results
+
+
+async def get_ah_anonymous_token(*, force_refresh: bool = False) -> str:
+    global _AH_ANONYMOUS_TOKEN
+    global _AH_ANONYMOUS_TOKEN_EXPIRES_AT
+
+    if not force_refresh and _AH_ANONYMOUS_TOKEN and time.monotonic() < _AH_ANONYMOUS_TOKEN_EXPIRES_AT:
+        return _AH_ANONYMOUS_TOKEN
+
+    async with httpx.AsyncClient(headers=AH_API_HEADERS, timeout=20.0) as client:
+        response = await client.post(
+            AH_ANONYMOUS_TOKEN_URL,
+            json={"clientId": AH_ANONYMOUS_CLIENT_ID},
+        )
+        response.raise_for_status()
+        payload = response.json()
+
+    access_token = str(payload.get("access_token") or "").strip()
+    if not access_token:
+        raise ValueError("Albert Heijn anonymous token response missing access token")
+
+    expires_in = int(payload.get("expires_in") or 0)
+    _AH_ANONYMOUS_TOKEN = access_token
+    _AH_ANONYMOUS_TOKEN_EXPIRES_AT = time.monotonic() + max(expires_in - 60, 0)
+    return access_token
+
+
+async def fetch_ah_graphql(query: str, *, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def send_request(access_token: str) -> httpx.Response:
+        headers = {**AH_API_HEADERS, "Authorization": f"Bearer {access_token}"}
+        async with httpx.AsyncClient(headers=headers, timeout=20.0) as client:
+            return await client.post(
+                AH_GRAPHQL_URL,
+                json={"query": query, "variables": variables or {}},
+            )
+
+    access_token = await get_ah_anonymous_token()
+    response = await send_request(access_token)
+    if response.status_code == httpx.codes.UNAUTHORIZED:
+        access_token = await get_ah_anonymous_token(force_refresh=True)
+        response = await send_request(access_token)
+
+    response.raise_for_status()
+    payload = response.json()
+    errors = payload.get("errors") or []
+    if errors:
+        first_error = errors[0]
+        raise ValueError(str(first_error.get("message") or "Albert Heijn GraphQL query failed"))
+
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        raise ValueError("Albert Heijn GraphQL response missing data")
+    return data
+
+
+def parse_ah_recipe_product_suggestions(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    items = payload.get("recipeProductSuggestionsV2")
+    if not isinstance(items, list):
+        return []
+
+    suggestions: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        ingredient = item.get("ingredient")
+        if not isinstance(ingredient, dict):
+            continue
+
+        ingredient_name = normalize_space(str(ingredient.get("name") or ""))
+        if not ingredient_name:
+            continue
+
+        primary_product = parse_ah_suggested_product(item.get("productSuggestion"))
+        selected_product = primary_product
+        product_source = "primary" if primary_product else None
+
+        parsed_alternative_sections: list[dict[str, Any]] = []
+        alternative_sections = item.get("alternativeSections")
+        if isinstance(alternative_sections, list):
+            for section in alternative_sections:
+                if not isinstance(section, dict):
+                    continue
+                parsed_products: list[dict[str, Any]] = []
+                product_suggestions = section.get("productSuggestions")
+                if isinstance(product_suggestions, list):
+                    for alternative_suggestion in product_suggestions:
+                        parsed_product = parse_ah_suggested_product(alternative_suggestion)
+                        if parsed_product is not None:
+                            parsed_products.append(parsed_product)
+                if not parsed_products:
+                    continue
+                parsed_alternative_sections.append(
+                    {
+                        "title": normalize_space(str(section.get("title") or "")) or None,
+                        "description": normalize_space(str(section.get("description") or "")) or None,
+                        "products": parsed_products,
+                    }
+                )
+
+        if selected_product is None:
+            for section in parsed_alternative_sections:
+                products = section.get("products") or []
+                if products:
+                    selected_product = products[0]
+                    product_source = "alternative"
+                    break
+
+        suggestions.append(
+            {
+                "ingredient_id": ingredient.get("id"),
+                "ingredient_name": ingredient_name,
+                "ingredient_quantity": ingredient.get("quantityFloat"),
+                "ingredient_unit": normalize_space(str(ingredient.get("quantityUnit") or "")) or None,
+                "ingredient_raw_text": normalize_space(str(ingredient.get("rawIngredientText") or "")) or None,
+                "optional": bool(item.get("optional")),
+                "product_id": selected_product.get("ah_product_id") if selected_product else None,
+                "product_quantity": selected_product.get("quantity") if selected_product else 1,
+                "product": selected_product,
+                "product_source": product_source,
+                "alternative_sections": parsed_alternative_sections,
+            }
+        )
+
+    return suggestions
+
+
+async def fetch_ah_recipe_product_suggestions(recipe_id: int, number_of_servings: int) -> list[dict[str, Any]]:
+    payload = await fetch_ah_graphql(
+        AH_RECIPE_PRODUCT_SUGGESTIONS_QUERY,
+        variables={
+            "recipeId": recipe_id,
+            "numberOfServings": number_of_servings,
+        },
+    )
+    return parse_ah_recipe_product_suggestions(payload)
 
 
 async def fetch_ah_html(url: str) -> str:

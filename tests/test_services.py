@@ -7,6 +7,7 @@ import pytest
 from backend.app import services as services_module
 from backend.app.services import (
     aggregate_ingredients,
+    fetch_ah_recipe_product_suggestions,
     format_shopping_line,
     find_ah_product_url,
     is_better_product_match,
@@ -58,10 +59,162 @@ def test_parse_ah_product_html_reads_real_ah_fixture():
 def test_parse_ah_recipe_html_reads_real_ah_fixture():
     recipe = parse_ah_recipe_html(read_fixture("ah_recipe_live.html"), RECIPE_URL)
     assert recipe["external_id"] == "R-R1196325"
+    assert recipe["native_recipe_id"] == 1196325
     assert recipe["name"] == "Rode-linzensoep met paprika-muntolie"
     assert recipe["base_persons"] == 4
     assert recipe["ingredients"][0]["normalized_name"] == "ui"
     assert any("Pureer de soep" in step for step in recipe["instruction_steps"])
+
+
+def test_fetch_ah_recipe_product_suggestions_parses_native_response(monkeypatch: pytest.MonkeyPatch):
+    async def fake_fetch(query: str, *, variables: dict | None = None) -> dict:
+        assert "recipeProductSuggestionsV2" in query
+        assert "ingredientsToOverride: []" in query
+        assert "alternativeSections" in query
+        assert "availability" in query
+        assert variables == {"recipeId": 1196325, "numberOfServings": 4}
+        return {
+            "recipeProductSuggestionsV2": [
+                {
+                    "optional": False,
+                    "ingredient": {
+                        "id": 1638652,
+                        "name": "gedroogde rode linzen",
+                        "quantityFloat": 200,
+                        "quantityUnit": "g",
+                        "rawIngredientText": "200 g gedroogde rode linzen",
+                    },
+                    "productSuggestion": {
+                        "quantity": 1,
+                        "product": {
+                            "id": 469879,
+                            "title": "AH Terra Biologische rode linzen",
+                            "webPath": "/producten/product/wi469879/ah-terra-biologische-rode-linzen",
+                            "salesUnitSize": "500 g",
+                            "imagePack": [{"small": {"url": "https://static.ah.nl/linzen.jpg"}}],
+                            "priceV2": {"now": {"amount": 1.99}},
+                            "availability": {
+                                "availabilityLabel": None,
+                                "isOrderable": True,
+                                "isVisible": True,
+                            },
+                        },
+                    },
+                },
+                {
+                    "optional": True,
+                    "ingredient": {
+                        "id": 3200,
+                        "name": "milde olijfolie",
+                        "quantityFloat": 4,
+                        "quantityUnit": "el",
+                        "rawIngredientText": "4 el milde olijfolie",
+                    },
+                    "productSuggestion": None,
+                    "alternativeSections": [
+                        {
+                            "title": "Meest voordelig",
+                            "description": "De voordeligste keuze",
+                            "productSuggestions": [
+                                {
+                                    "quantity": 1,
+                                    "product": {
+                                        "id": 54443,
+                                        "title": "AH Olijfolie mild",
+                                        "webPath": "/producten/product/wi54443/ah-olijfolie-mild",
+                                        "salesUnitSize": "0.5 l",
+                                        "imagePack": [{"small": {"url": "https://static.ah.nl/olie.jpg"}}],
+                                        "priceV2": {"now": {"amount": 4.79}},
+                                        "availability": {
+                                            "availabilityLabel": "Uit het assortiment",
+                                            "isOrderable": False,
+                                            "isVisible": True,
+                                        },
+                                    },
+                                }
+                            ]
+                        }
+                    ],
+                },
+            ]
+        }
+
+    monkeypatch.setattr(services_module, "fetch_ah_graphql", fake_fetch)
+
+    suggestions = asyncio.run(fetch_ah_recipe_product_suggestions(1196325, 4))
+
+    assert suggestions == [
+        {
+            "ingredient_id": 1638652,
+            "ingredient_name": "gedroogde rode linzen",
+            "ingredient_quantity": 200,
+            "ingredient_unit": "g",
+            "ingredient_raw_text": "200 g gedroogde rode linzen",
+            "optional": False,
+            "product_id": 469879,
+            "product_quantity": 1,
+            "product_source": "primary",
+            "product": {
+                "ah_product_id": 469879,
+                "ah_id": "wi469879",
+                "title": "AH Terra Biologische rode linzen",
+                "source_url": "https://www.ah.nl/producten/product/wi469879/ah-terra-biologische-rode-linzen",
+                "quantity": 1,
+                "image": "https://static.ah.nl/linzen.jpg",
+                "price": 1.99,
+                "unit": "500 g",
+                "availability_label": None,
+                "is_orderable": True,
+                "is_visible": True,
+            },
+            "alternative_sections": [],
+        },
+        {
+            "ingredient_id": 3200,
+            "ingredient_name": "milde olijfolie",
+            "ingredient_quantity": 4,
+            "ingredient_unit": "el",
+            "ingredient_raw_text": "4 el milde olijfolie",
+            "optional": True,
+            "product_id": 54443,
+            "product_quantity": 1,
+            "product_source": "alternative",
+            "product": {
+                "ah_product_id": 54443,
+                "ah_id": "wi54443",
+                "title": "AH Olijfolie mild",
+                "source_url": "https://www.ah.nl/producten/product/wi54443/ah-olijfolie-mild",
+                "quantity": 1,
+                "image": "https://static.ah.nl/olie.jpg",
+                "price": 4.79,
+                "unit": "0.5 l",
+                "availability_label": "Uit het assortiment",
+                "is_orderable": False,
+                "is_visible": True,
+            },
+            "alternative_sections": [
+                {
+                    "title": "Meest voordelig",
+                    "description": "De voordeligste keuze",
+                    "products": [
+                        {
+                            "ah_product_id": 54443,
+                            "ah_id": "wi54443",
+                            "title": "AH Olijfolie mild",
+                            "source_url": "https://www.ah.nl/producten/product/wi54443/ah-olijfolie-mild",
+                            "quantity": 1,
+                            "image": "https://static.ah.nl/olie.jpg",
+                            "price": 4.79,
+                            "unit": "0.5 l",
+                            "availability_label": "Uit het assortiment",
+                            "is_orderable": False,
+                            "is_visible": True,
+                        }
+                    ],
+                }
+            ],
+        },
+    ]
 
 
 def test_aggregate_ingredients_normalizes_units_and_names():

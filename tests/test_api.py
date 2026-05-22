@@ -110,6 +110,7 @@ def test_recipe_import_auto_imports_matching_products(client: TestClient, monkey
     headers = {"Authorization": f"Bearer {auth['access_token']}"}
     recipe_payload = {
         "external_id": "test-auto-import",
+        "native_recipe_id": 1196325,
         "name": "Linzensoep",
         "normalized_name": "linzensoep",
         "description": "Test recipe",
@@ -130,8 +131,21 @@ def test_recipe_import_auto_imports_matching_products(client: TestClient, monkey
     async def fake_scrape(_: str) -> dict:
         return recipe_payload
 
-    async def fake_find_product(_: str) -> str | None:
-        return "https://www.ah.nl/producten/product/wi469879/ah-terra-biologisch-rode-linzen"
+    async def fake_native_suggestions(recipe_id: int, number_of_servings: int) -> list[dict]:
+        assert recipe_id == 1196325
+        assert number_of_servings == 2
+        return [
+            {
+                "ingredient_id": 1638652,
+                "ingredient_name": "gedroogde rode linzen",
+                "optional": False,
+                "product_id": 469879,
+                "product_quantity": 1,
+            }
+        ]
+
+    async def fail_find_product(_: str) -> str | None:
+        raise AssertionError("search fallback should not run when a native suggestion exists")
 
     async def fake_import_product(_: str) -> dict:
         return {
@@ -146,7 +160,8 @@ def test_recipe_import_auto_imports_matching_products(client: TestClient, monkey
         }
 
     monkeypatch.setattr(main_module, "scrape_ah_recipe", fake_scrape)
-    monkeypatch.setattr(main_module, "find_ah_product_url", fake_find_product)
+    monkeypatch.setattr(main_module, "fetch_ah_recipe_product_suggestions", fake_native_suggestions)
+    monkeypatch.setattr(main_module, "find_ah_product_url", fail_find_product)
     monkeypatch.setattr(main_module, "import_ah_product", fake_import_product)
 
     response = client.post("/recipes/import", headers=headers, json={"url": RECIPE_URL})
@@ -158,6 +173,270 @@ def test_recipe_import_auto_imports_matching_products(client: TestClient, monkey
     products = client.get("/products", headers=headers)
     assert products.status_code == 200, products.text
     assert len(products.json()) == 1
+
+
+def test_recipe_import_uses_native_alternative_product_suggestions(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    auth = register_user(client, email="native-alternative@example.com", username="nativealternative")
+    headers = {"Authorization": f"Bearer {auth['access_token']}"}
+    recipe_payload = {
+        "external_id": "test-native-alternative",
+        "native_recipe_id": 1196325,
+        "name": "Linzensoep",
+        "normalized_name": "linzensoep",
+        "description": "Test recipe",
+        "image": "",
+        "instructions": "Cook",
+        "base_persons": 2,
+        "ingredients": [
+            {
+                "name": "milde olijfolie",
+                "normalized_name": "olijfolie",
+                "quantity": 4,
+                "unit": "el",
+                "raw_text": "4 el milde olijfolie",
+            },
+            {
+                "name": "rode linzen",
+                "normalized_name": "rode linzen",
+                "quantity": 250,
+                "unit": "g",
+                "raw_text": "250 g rode linzen",
+            },
+        ],
+    }
+
+    async def fake_scrape(_: str) -> dict:
+        return recipe_payload
+
+    async def fake_native_suggestions(recipe_id: int, number_of_servings: int) -> list[dict]:
+        assert recipe_id == 1196325
+        assert number_of_servings == 2
+        return [
+            {
+                "ingredient_id": 3200,
+                "ingredient_name": "milde olijfolie",
+                "ingredient_quantity": 4,
+                "ingredient_unit": "el",
+                "ingredient_raw_text": "4 el milde olijfolie",
+                "optional": True,
+                "product_id": 54443,
+                "product_quantity": 1,
+                "product_source": "alternative",
+                "product": {
+                    "ah_product_id": 54443,
+                    "ah_id": "wi54443",
+                    "title": "AH Olijfolie mild",
+                    "source_url": "https://www.ah.nl/producten/product/wi54443/ah-olijfolie-mild",
+                    "quantity": 1,
+                    "image": "https://static.ah.nl/olijfolie.jpg",
+                    "price": 4.79,
+                    "unit": "0.5 l",
+                    "availability_label": "Uit het assortiment",
+                    "is_orderable": False,
+                    "is_visible": True,
+                },
+                "alternative_sections": [],
+            },
+            {
+                "ingredient_id": 1638652,
+                "ingredient_name": "gedroogde rode linzen",
+                "ingredient_quantity": 250,
+                "ingredient_unit": "g",
+                "ingredient_raw_text": "250 g rode linzen",
+                "optional": False,
+                "product_id": 469879,
+                "product_quantity": 1,
+                "product_source": "primary",
+                "product": {
+                    "ah_product_id": 469879,
+                    "ah_id": "wi469879",
+                    "title": "AH Terra Biologisch rode linzen",
+                    "source_url": "https://www.ah.nl/producten/product/wi469879/ah-terra-biologisch-rode-linzen",
+                    "quantity": 1,
+                    "image": "https://static.ah.nl/linzen.jpg",
+                    "price": 1.99,
+                    "unit": "500 g",
+                    "availability_label": None,
+                    "is_orderable": True,
+                    "is_visible": True,
+                },
+                "alternative_sections": [],
+            },
+        ]
+
+    async def fail_find_product(_: str) -> str | None:
+        raise AssertionError("search fallback should not run when a native alternative suggestion exists")
+
+    async def fail_import_product(_: str) -> dict:
+        raise AssertionError("native suggestions with product metadata should not require HTML product import")
+
+    monkeypatch.setattr(main_module, "scrape_ah_recipe", fake_scrape)
+    monkeypatch.setattr(main_module, "fetch_ah_recipe_product_suggestions", fake_native_suggestions)
+    monkeypatch.setattr(main_module, "find_ah_product_url", fail_find_product)
+    monkeypatch.setattr(main_module, "import_ah_product", fail_import_product)
+
+    response = client.post("/recipes/import", headers=headers, json={"url": RECIPE_URL})
+    assert response.status_code == 200, response.text
+    recipe = response.json()
+
+    ingredients_by_name = {item["name"]: item for item in recipe["ingredients"]}
+    assert ingredients_by_name["milde olijfolie"]["requires_product"] is False
+    assert ingredients_by_name["milde olijfolie"]["product_title"] == "AH Olijfolie mild"
+    assert ingredients_by_name["milde olijfolie"]["product_availability_label"] == "Uit het assortiment"
+    assert ingredients_by_name["milde olijfolie"]["product_is_orderable"] is False
+    assert ingredients_by_name["rode linzen"]["product_title"] == "AH Terra Biologisch rode linzen"
+
+
+def test_recipe_product_suggestions_endpoint_returns_status_and_alternatives(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    auth = register_user(client, email="recipe-suggestions@example.com", username="recipesuggestions")
+    headers = {"Authorization": f"Bearer {auth['access_token']}"}
+    recipe_payload = {
+        "external_id": "test-suggestions",
+        "native_recipe_id": 1195174,
+        "name": "Pad thai",
+        "normalized_name": "pad thai",
+        "description": "Test recipe",
+        "image": "",
+        "instructions": "Cook",
+        "base_persons": 4,
+        "ingredients": [
+            {
+                "name": "zonnebloemolie",
+                "normalized_name": "zonnebloemolie",
+                "quantity": 500,
+                "unit": "ml",
+                "raw_text": "500 ml zonnebloemolie",
+            },
+            {
+                "name": "tofu naturel",
+                "normalized_name": "tofu naturel",
+                "quantity": 650,
+                "unit": "g",
+                "raw_text": "650 g tofu naturel",
+            },
+        ],
+    }
+
+    async def fake_scrape(_: str) -> dict:
+        return recipe_payload
+
+    async def fake_native_suggestions(recipe_id: int, number_of_servings: int) -> list[dict]:
+        assert recipe_id == 1195174
+        assert number_of_servings == 4
+        return [
+            {
+                "ingredient_id": 4787,
+                "ingredient_name": "zonnebloemolie",
+                "ingredient_quantity": 500,
+                "ingredient_unit": "ml",
+                "ingredient_raw_text": "500 ml zonnebloemolie",
+                "optional": True,
+                "product_id": 906,
+                "product_quantity": 1,
+                "product_source": "alternative",
+                "product": {
+                    "ah_product_id": 906,
+                    "ah_id": "wi906",
+                    "title": "AH Zonnebloemolie",
+                    "source_url": "https://www.ah.nl/producten/product/wi906/ah-zonnebloemolie",
+                    "quantity": 1,
+                    "image": "https://static.ah.nl/zonnebloemolie.jpg",
+                    "price": 3.49,
+                    "unit": "1 l",
+                    "availability_label": "Uit het assortiment",
+                    "is_orderable": False,
+                    "is_visible": True,
+                },
+                "alternative_sections": [
+                    {
+                        "title": "Kies alternatief",
+                        "description": "Vergelijk andere oliën",
+                        "products": [
+                            {
+                                "ah_product_id": 906,
+                                "ah_id": "wi906",
+                                "title": "AH Zonnebloemolie",
+                                "source_url": "https://www.ah.nl/producten/product/wi906/ah-zonnebloemolie",
+                                "quantity": 1,
+                                "image": "https://static.ah.nl/zonnebloemolie.jpg",
+                                "price": 3.49,
+                                "unit": "1 l",
+                                "availability_label": "Uit het assortiment",
+                                "is_orderable": False,
+                                "is_visible": True,
+                            },
+                            {
+                                "ah_product_id": 54443,
+                                "ah_id": "wi54443",
+                                "title": "AH Olijfolie mild",
+                                "source_url": "https://www.ah.nl/producten/product/wi54443/ah-olijfolie-mild",
+                                "quantity": 1,
+                                "image": "https://static.ah.nl/olijfolie.jpg",
+                                "price": 4.79,
+                                "unit": "0.5 l",
+                                "availability_label": None,
+                                "is_orderable": True,
+                                "is_visible": True,
+                            },
+                        ],
+                    }
+                ],
+            },
+            {
+                "ingredient_id": 1174764,
+                "ingredient_name": "tofu naturel",
+                "ingredient_quantity": 650,
+                "ingredient_unit": "g",
+                "ingredient_raw_text": "650 g tofu naturel",
+                "optional": False,
+                "product_id": 564897,
+                "product_quantity": 2,
+                "product_source": "primary",
+                "product": {
+                    "ah_product_id": 564897,
+                    "ah_id": "wi564897",
+                    "title": "AH Terra Biologische tofu",
+                    "source_url": "https://www.ah.nl/producten/product/wi564897/ah-terra-biologische-tofu",
+                    "quantity": 2,
+                    "image": "https://static.ah.nl/tofu.jpg",
+                    "price": 2.79,
+                    "unit": "325 g",
+                    "availability_label": None,
+                    "is_orderable": True,
+                    "is_visible": True,
+                },
+                "alternative_sections": [],
+            },
+        ]
+
+    async def fail_import_product(_: str) -> dict:
+        raise AssertionError("native suggestions with product metadata should not require HTML product import")
+
+    monkeypatch.setattr(main_module, "scrape_ah_recipe", fake_scrape)
+    monkeypatch.setattr(main_module, "fetch_ah_recipe_product_suggestions", fake_native_suggestions)
+    monkeypatch.setattr(main_module, "import_ah_product", fail_import_product)
+
+    recipe_response = client.post("/recipes/import", headers=headers, json={"url": RECIPE_URL})
+    assert recipe_response.status_code == 200, recipe_response.text
+    recipe_id = recipe_response.json()["id"]
+
+    suggestions_response = client.get(f"/recipes/{recipe_id}/product-suggestions", headers=headers)
+    assert suggestions_response.status_code == 200, suggestions_response.text
+    suggestions = suggestions_response.json()
+
+    assert suggestions["recipe_id"] == recipe_id
+    ingredients_by_name = {item["name"]: item for item in suggestions["ingredients"]}
+    assert ingredients_by_name["zonnebloemolie"]["product_availability_label"] == "Uit het assortiment"
+    assert ingredients_by_name["zonnebloemolie"]["suggested_product"]["availability_label"] == "Uit het assortiment"
+    assert ingredients_by_name["zonnebloemolie"]["suggested_product_source"] == "alternative"
+    assert ingredients_by_name["zonnebloemolie"]["alternative_sections"][0]["products"][1]["ah_product_id"] == 54443
+    assert ingredients_by_name["tofu naturel"]["suggested_product"]["ah_product_id"] == 564897
 
 
 def test_recipe_import_job_and_shopping_list_flow(client: TestClient, monkeypatch: pytest.MonkeyPatch):
@@ -404,6 +683,101 @@ def test_pantry_ingredients_do_not_block_weekplan_or_grocery_list(client: TestCl
     assert add_with_pantry_response.status_code == 200, add_with_pantry_response.text
     added_with_pantry = add_with_pantry_response.json()["items"]
     assert {item["product_title"] for item in added_with_pantry} == {"AH Citroen", "AH Olijfolie mild"}
+
+
+def test_native_optional_ingredients_use_requires_product_compatibility_field(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    auth = register_user(client, email="native-optional@example.com", username="nativeoptional")
+    headers = {"Authorization": f"Bearer {auth['access_token']}"}
+    recipe_payload = {
+        "external_id": "test-native-optional",
+        "native_recipe_id": 999001,
+        "name": "Pasta met basilicum",
+        "normalized_name": "pasta met basilicum",
+        "description": "Test recipe",
+        "image": "",
+        "instructions": "Cook and serve.",
+        "base_persons": 2,
+        "ingredients": [
+            {
+                "name": "verse basilicum",
+                "normalized_name": "basilicum",
+                "quantity": 1,
+                "unit": "bosje",
+                "raw_text": "1 bosje verse basilicum",
+            },
+            {
+                "name": "penne",
+                "normalized_name": "penne",
+                "quantity": 300,
+                "unit": "g",
+                "raw_text": "300 g penne",
+            },
+        ],
+    }
+
+    async def fake_scrape(_: str) -> dict:
+        return recipe_payload
+
+    async def fake_native_suggestions(recipe_id: int, number_of_servings: int) -> list[dict]:
+        assert recipe_id == 999001
+        assert number_of_servings == 2
+        return [
+            {
+                "ingredient_id": 7001,
+                "ingredient_name": "verse basilicum",
+                "optional": True,
+                "product_id": None,
+                "product_quantity": 1,
+            },
+            {
+                "ingredient_id": 7002,
+                "ingredient_name": "penne",
+                "optional": False,
+                "product_id": 153893,
+                "product_quantity": 1,
+            },
+        ]
+
+    search_queries: list[str] = []
+
+    async def fake_find_product(query: str) -> str | None:
+        search_queries.append(query)
+        return None
+
+    async def fake_import_product(_: str) -> dict:
+        return {
+            "ah_id": "wi153893",
+            "source_url": "https://www.ah.nl/producten/product/wi153893",
+            "title": "AH Penne rigate",
+            "normalized_title": "penne rigate",
+            "image": "",
+            "price": 0.99,
+            "unit": "500 g",
+            "description": "Penne",
+        }
+
+    monkeypatch.setattr(main_module, "scrape_ah_recipe", fake_scrape)
+    monkeypatch.setattr(main_module, "fetch_ah_recipe_product_suggestions", fake_native_suggestions)
+    monkeypatch.setattr(main_module, "find_ah_product_url", fake_find_product)
+    monkeypatch.setattr(main_module, "import_ah_product", fake_import_product)
+
+    response = client.post("/recipes/import", headers=headers, json={"url": RECIPE_URL})
+    assert response.status_code == 200, response.text
+    recipe = response.json()
+
+    assert recipe["is_fully_matched"] is True
+    assert recipe["matched_ingredients"] == 1
+    assert recipe["total_ingredients"] == 1
+    assert search_queries == ["verse basilicum"]
+
+    ingredients_by_name = {item["name"]: item for item in recipe["ingredients"]}
+    assert ingredients_by_name["verse basilicum"]["requires_product"] is False
+    assert ingredients_by_name["verse basilicum"]["product_id"] is None
+    assert ingredients_by_name["penne"]["requires_product"] is True
+    assert ingredients_by_name["penne"]["product_title"] == "AH Penne rigate"
 
 
 def test_delete_recipe_removes_recipe_and_weekplan_entries(client: TestClient, monkeypatch: pytest.MonkeyPatch):
